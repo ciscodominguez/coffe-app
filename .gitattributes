@@ -1,0 +1,5 @@
+# Los scripts del servidor tienen que quedar con saltos de línea de Linux
+# aunque el proyecto se edite en Windows (si no, bash no los corre).
+*.sh text eol=lf
+deploy/** text eol=lf
+Dockerfile text eol=lf

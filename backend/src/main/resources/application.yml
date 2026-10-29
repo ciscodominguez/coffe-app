@@ -1,0 +1,166 @@
+# COFE_APP backend — configuración.
+#
+# Equivalente a apps/backend/src/config/env.validation.ts (zod) del backend
+# NestJS original: acá la validación "al bootear, falla rápido y claro" la
+# hace Spring Boot solo, porque cada variable sin default (JWT_SECRET) es
+# obligatoria y el arranque explota si falta — no hace falta un validador
+# a mano.
+#
+# `spring.config.import` carga un archivo `.env` (formato KEY=VALUE, igual
+# que el del proyecto original) si existe junto al jar/al correr `mvn
+# spring-boot:run` — así no hace falta exportar variables de entorno a mano
+# en desarrollo. En producción, las variables de entorno reales siempre
+# pisan lo que haya en `.env` (es el comportamiento estándar de Spring:
+# variables de entorno > application.yml > archivos importados con menor
+# prioridad — ver PORT/DB_* etc. abajo, todos con `${VAR:default}`).
+spring:
+  config:
+    # Busca el .env en la carpeta desde donde se arranca (la de `backend`),
+    # en `backend/.env` si se arranca desde `cofe-app`, y en el que encuentra
+    # CofeAppApplication junto a las clases compiladas (sirve aunque IntelliJ
+    # arranque desde cualquier otra carpeta).
+    import:
+      - "optional:file:.env[.properties]"
+      - "optional:file:backend/.env[.properties]"
+      - "optional:file:${cofeapp.env-file:.env}[.properties]"
+
+  application:
+    name: cofe-app-backend
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:cofe_app}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: ${DB_USERNAME:cofe_user}
+    password: ${DB_PASSWORD:cofe_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # Prueba de carga (oct. 2026): con el aislamiento por defecto de MySQL
+      # (REPEATABLE READ) una transacción seguía viendo la foto vieja después
+      # de esperar un bloqueo, y dos mozos podían abrir pedido en la misma
+      # mesa a la vez. READ COMMITTED (el de casi todas las bases) ve lo último
+      # que se guardó apenas consigue el bloqueo.
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+
+  jpa:
+    hibernate:
+      # `validate`, no `update`/`create`: el esquema real lo gobierna Flyway
+      # (src/main/resources/db/migration), igual que `prisma migrate` en el
+      # proyecto original — Hibernate nunca genera ni altera tablas solo,
+      # así nunca hay una migración "fantasma" que Flyway no conozca.
+      ddl-auto: validate
+    open-in-view: true
+    # open-in-view=true (el default de Spring Boot) es deliberado acá, no un
+    # descuido: TenantFilterInterceptor (ver common/tenant/) habilita el
+    # filtro de Hibernate de aislamiento multi-tenant en el
+    # HandlerInterceptor.preHandle(), que corre DESPUÉS de que
+    # OpenEntityManagerInViewInterceptor (orden 0) ya ató un EntityManager al thread de la
+    # request — con OSIV en false habría que abrir la transacción a mano
+    # antes de ese punto. Ver el Javadoc de TenantFilterInterceptor para el
+    # detalle completo de por qué.
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  servlet:
+    # Límite para la subida de imágenes de producto (ver media/FileStorageService
+    # — MAX_BYTES ahí hace la misma validación con un mensaje más claro que el
+    # 413 genérico que tiraría Spring solo con este límite).
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+server:
+  port: ${PORT:3000}
+  servlet:
+    context-path: /api/v1
+    # Mismo prefijo global que `app.setGlobalPrefix('api/v1')` en main.ts
+    # del backend original.
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:reemplazar-por-un-secreto-largo-y-aleatorio-de-al-menos-32-caracteres}
+    expiration: ${JWT_EXPIRES_IN:8h}
+  cors:
+    origin: ${CORS_ORIGIN:http://localhost:4200}
+  uploads:
+    # Carpeta en disco donde se guardan las imágenes subidas (ver
+    # media/FileStorageService) — relativa al directorio desde donde se
+    # corre el jar si no es una ruta absoluta.
+    dir: ${UPLOADS_DIR:./uploads}
+  # Con qué URL se arma la URL pública de cada imagen guardada (ver
+  # FileStorageService#storeProductImage) — mismo host:puerto que
+  # apiBaseUrl en el frontend (environment*.ts) por defecto, ya con el
+  # context-path /api/v1 incluido, porque ahí es donde WebMvcConfig sirve
+  # /uploads/** en realidad.
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:3000/api/v1}
+  # Dirección del frontend — con esto se arma el link de "Olvidé mi
+  # contraseña" que va en el mail (V9). En producción: el dominio real.
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  platform:
+    # Panel de superadmin (V15 — ver README, paso 3.1). La cuenta se crea
+    # (o se le actualiza la contraseña) al arrancar. Vacíos = sin panel.
+    admin-email: ${SUPERADMIN_EMAIL:}
+    admin-password: ${SUPERADMIN_PASSWORD:}
+    # Lo que ve un café suspendido: "Comunicate con …".
+    support-contact: ${SUPPORT_CONTACT:}
+  legal:
+    # Versión vigente de los Términos y la Política de privacidad (V17 — ver
+    # README, paso 3.3): la fecha desde la que rigen. Tiene que coincidir con
+    # la de frontend/src/app/features/legal/legal-info.ts. Si la cambiás, a
+    # cada dueño le aparece para aceptarla de nuevo al entrar.
+    version: ${LEGAL_VERSION:2026-10-01}
+  billing:
+    # Cobro de la suscripción (V16 — ver README, paso 3.2). Access Token de
+    # la cuenta de Mercado Pago de Fran, donde entra la plata de los abonos.
+    # Vacío = todavía nadie puede suscribirse (la prueba gratis anda igual).
+    mp-access-token: ${BILLING_MP_ACCESS_TOKEN:}
+    # Cada cuánto se revisan pagos y vencimientos (ms; por defecto 1 hora).
+    job-interval-ms: ${BILLING_JOB_INTERVAL_MS:3600000}
+  mercadopago:
+    # Cobro con QR de Mercado Pago (V10 — ver README, paso 2.2).
+    api-base-url: ${MP_API_BASE_URL:https://api.mercadopago.com}
+    # Frase con la que se cifran los Access Token de Mercado Pago guardados
+    # (mínimo 16 caracteres). En producción: una propia, larga y aleatoria.
+    # OJO: si se cambia, cada negocio tiene que volver a conectar su cuenta.
+    token-encryption-key: ${MP_TOKEN_ENCRYPTION_KEY:reemplazar-por-otra-frase-larga-y-aleatoria-para-cifrar-tokens}
+    # Cuánto espera un QR antes de vencer (1 a 15 minutos).
+    charge-expiration-minutes: ${MP_QR_EXPIRATION_MINUTES:15}
+    # Cada cuánto el proceso de fondo revisa los cobros con QR pendientes.
+    sync-interval-ms: ${MP_SYNC_INTERVAL_MS:15000}
+    sweeper-enabled: true
+  mail:
+    # Remitente de los mails. El servidor de correo (SMTP) se configura con
+    # las propiedades estándar spring.mail.* — ver .env.example. Si no hay
+    # ninguno configurado, los mails se escriben en el log (MailService).
+    from: ${MAIL_FROM:COFFE_APP <no-responder@coffeapp.local>}
+
+logging:
+  level:
+    com.cofeapp.backend: INFO
+
+# Endpoint de salud: GET /api/v1/actuator/health → {"status":"UP"}.
+# Lo usan Docker (para saber si el backend arrancó bien), el script de
+# actualización (si la versión nueva no da UP, vuelve a la anterior) y un
+# monitor externo como UptimeRobot. Sin sesión y sin detalles: solo dice
+# UP o DOWN. Revisa que la base de datos responda y que haya disco.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    # Si el servidor de correo está caído los mails se reintentan solos;
+    # no es motivo para declarar "caído" todo el sistema.
+    mail:
+      enabled: false

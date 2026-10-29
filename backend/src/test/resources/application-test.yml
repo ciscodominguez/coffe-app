@@ -1,0 +1,39 @@
+# Perfil "test" — lo activan los tests de integración (ver
+# support/IntegrationTest). Usa una base APARTE, nunca la real:
+#
+#   cofe_app_test  (en el mismo MySQL de siempre)
+#
+# Se crea una sola vez (ver README, sección "Tests del backend"). Los tests
+# la BORRAN y la vuelven a armar con Flyway al arrancar, así que no guardes
+# nada ahí. Por seguridad, TestSupportConfig se niega a borrar una base cuyo
+# nombre no tenga "test".
+#
+# Usuario y contraseña: los mismos del .env (DB_USERNAME / DB_PASSWORD).
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${TEST_DB_NAME:cofe_app_test}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&createDatabaseIfNotExist=true
+  flyway:
+    # Flyway trae "clean" apagado por defecto (bien: en la base real nunca
+    # tiene que correr). Acá se prende porque la base es descartable.
+    clean-disabled: false
+
+app:
+  platform:
+    admin-email: superadmin@test.local
+    admin-password: clave-superadmin-1
+    support-contact: Fran (223 555-0000)
+  billing:
+    # Los tests llaman a mano a BillingService#runChecks: sin proceso de fondo.
+    job-enabled: false
+    mp-access-token: TEST-token-de-fran
+  mercadopago:
+    # Los tests llaman a mano a QrChargeService#syncAllPending: sin proceso de fondo.
+    sweeper-enabled: false
+    token-encryption-key: clave-de-prueba-para-cifrar-tokens-de-mp
+  uploads:
+    dir: ${java.io.tmpdir}/cofe-app-test-uploads
+
+logging:
+  level:
+    com.cofeapp.backend: WARN
+    org.flywaydb: WARN

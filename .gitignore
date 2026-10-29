@@ -1,0 +1,17 @@
+# COFFE_APP — lo que NUNCA se sube a GitHub.
+# Claves y configuración local
+backend/.env
+deploy/.env
+# Generado al compilar / al usar
+backend/target/
+backend/uploads/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+deploy/backups/
+deploy/estado/
+deploy/logs/
+# Carpeta de entregas de Claude
+Claude outputs/
+.idea/
+*.iml
