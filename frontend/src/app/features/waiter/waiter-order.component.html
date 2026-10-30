@@ -1,0 +1,632 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Pedidos</h1>
+    <p class="page-subtitle">Tomá un pedido en 3 pasos. Desde "Pedidos abiertos" cobrás y entregás.</p>
+  </div>
+  <div class="page-actions">
+    <span class="live" [class]="'live live-' + (queueIsOnline() ? realtimeStatus() : 'offline')">
+      <span class="dot"></span>
+      @if (!queueIsOnline()) {
+        Sin internet
+      } @else {
+        @switch (realtimeStatus()) {
+          @case ('connected') {
+            En vivo
+          }
+          @case ('connecting') {
+            Conectando…
+          }
+          @case ('reconnecting') {
+            Reconectando…
+          }
+          @default {
+            Actualizando cada 20 s
+          }
+        }
+      }
+    </span>
+  </div>
+</div>
+
+<!-- Pedidos guardados en el dispositivo (sin conexión o con error) -->
+@if (queue().length > 0) {
+  <div class="alert" [class.alert-danger]="failedQueueCount() > 0" [class.alert-warning]="failedQueueCount() === 0">
+    <app-icon [name]="failedQueueCount() > 0 ? 'alert' : 'wifi-off'" />
+    <div class="alert-body">
+      <div class="row-between">
+        <span>
+          @if (failedQueueCount() > 0) {
+            {{ failedQueueCount() }} {{ failedQueueCount() === 1 ? 'pedido no se pudo enviar' : 'pedidos no se pudieron enviar' }}.
+          } @else {
+            {{ queue().length }} {{ queue().length === 1 ? 'pedido guardado' : 'pedidos guardados' }} en este dispositivo:
+            se {{ queue().length === 1 ? 'envía' : 'envían' }} solo{{ queue().length === 1 ? '' : 's' }} al volver la conexión.
+          }
+        </span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="showQueueDetail.set(!showQueueDetail())">
+          {{ showQueueDetail() ? 'Ocultar' : 'Ver detalle' }}
+        </button>
+      </div>
+      @if (showQueueDetail()) {
+        <ul class="queue-list">
+          @for (entry of queue(); track entry.localId) {
+            <li>
+              <div class="row-between">
+                <strong>{{ queueEntryTableLabel(entry) }}</strong>
+                <span class="small">{{ queueEntryItemCount(entry) }} ítem(s) · {{ queueStatusLabel(entry) }}</span>
+              </div>
+              @if (entry.errorMessage) {
+                <p class="small">{{ entry.errorMessage }}</p>
+              }
+              @if (entry.status === 'failed') {
+                <div class="row">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="retryQueueEntry(entry.localId)">
+                    <app-icon name="refresh" [size]="16" /> Reintentar
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="removeQueueEntry(entry.localId)">Descartar</button>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando la carta y las mesas…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else {
+  <div class="segmented block tabs" role="tablist">
+    <button type="button" role="tab" [class.active]="tab() === 'new'" [attr.aria-selected]="tab() === 'new'" (click)="tab.set('new')">
+      <app-icon name="plus" [size]="18" /> Nuevo<span class="hide-xs">pedido</span>
+    </button>
+    <button type="button" role="tab" [class.active]="tab() === 'open'" [attr.aria-selected]="tab() === 'open'" (click)="tab.set('open')">
+      <app-icon name="list" [size]="18" /> <span class="hide-xs">Pedidos abiertos</span><span class="show-xs">Abiertos</span>
+      @if (openOrders().length > 0) {
+        <span class="tab-count">{{ openOrders().length }}</span>
+      }
+    </button>
+  </div>
+
+  <!-- ===================== NUEVO PEDIDO ===================== -->
+  @if (tab() === 'new') {
+    @if (step() === 'sent') {
+      @if (sent(); as s) {
+        <div class="card sent-card">
+          <span class="sent-icon"><app-icon name="check" [size]="34" [strokeWidth]="2.5" /></span>
+          <h2>
+            @if (s.added) {
+              ¡Agregado al pedido!
+            } @else {
+              {{ s.online ? '¡Pedido enviado a cocina!' : 'Pedido guardado' }}
+            }
+          </h2>
+          <p class="muted">
+            {{ s.tableLabel }} · {{ s.itemCount }} {{ s.itemCount === 1 ? 'ítem' : 'ítems' }} ·
+            <span class="money">$ {{ s.total | number: '1.2-2' }}</span>
+          </p>
+          @if (s.added) {
+            <p class="small muted">Cocina lo ve en "Nuevo", marcado como agregado. El saldo a cobrar ya se actualizó.</p>
+          } @else if (!s.online) {
+            <p class="small muted">No hay internet: se envía solo en cuanto vuelva la conexión.</p>
+          }
+          <div class="sent-actions">
+            <button type="button" class="btn btn-primary btn-lg" (click)="startNewOrder()">
+              <app-icon name="plus" /> Tomar otro pedido
+            </button>
+            <button type="button" class="btn btn-secondary btn-lg" (click)="tab.set('open'); startNewOrder()">
+              <app-icon name="wallet" /> Ver pedidos abiertos / cobrar
+            </button>
+          </div>
+        </div>
+      }
+    } @else {
+      @if (addingTo(); as adding) {
+        <div class="adding-banner">
+          <app-icon name="plus" [size]="18" />
+          <span>Agregando al pedido de <strong>{{ orderTableLabel(adding) }}</strong></span>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="cancelAdding()">Cancelar</button>
+        </div>
+      }
+
+      <ol class="stepper" aria-label="Pasos del pedido">
+        <li [class.current]="step() === 1" [class.done]="isStepDone(1)">
+          <button type="button" (click)="goToStep(1)">
+            <span class="step-num">@if (isStepDone(1)) {<app-icon name="check" [size]="15" [strokeWidth]="3" />} @else {1}</span>
+            ¿Dónde?
+          </button>
+        </li>
+        <li [class.current]="step() === 2" [class.done]="isStepDone(2)">
+          <button type="button" (click)="goToStep(2)">
+            <span class="step-num">@if (isStepDone(2)) {<app-icon name="check" [size]="15" [strokeWidth]="3" />} @else {2}</span>
+            Productos
+          </button>
+        </li>
+        <li [class.current]="step() === 3">
+          <button type="button" (click)="goToStep(3)">
+            <span class="step-num">3</span>
+            Revisar y enviar
+          </button>
+        </li>
+      </ol>
+
+      <!-- Paso 1 -->
+      @if (step() === 1) {
+        <h2 class="step-title">¿Para dónde es el pedido?</h2>
+
+        <button type="button" class="card card-clickable takeaway" (click)="chooseTakeaway()">
+          <span class="takeaway-icon"><app-icon name="bag" [size]="26" /></span>
+          <span class="takeaway-text">
+            <strong>Para llevar</strong>
+            <span class="muted small">Mostrador, delivery o retiro</span>
+          </span>
+          <app-icon name="chevron-right" />
+        </button>
+
+        <!-- V19 — solo si el local tiene alguna app de delivery prendida -->
+        @if (appChannels().length > 0) {
+          <h3 class="section-label">¿Vino por una app?</h3>
+          <div class="app-choices">
+            @for (channel of appChannels(); track channel.id) {
+              <button type="button" class="card card-clickable app-choice" [class]="'card card-clickable app-choice ' + channelTone(channel.kind)" (click)="chooseApp(channel)">
+                <span class="ch-dot"></span>
+                <strong>{{ channel.name }}</strong>
+                <app-icon name="chevron-right" [size]="18" />
+              </button>
+            }
+          </div>
+        }
+
+        <div class="tables-head">
+          <h3 class="section-label">O elegí una mesa del salón</h3>
+          @if (hasPlan()) {
+            <div class="segmented" role="tablist" aria-label="Cómo ver las mesas">
+              <button type="button" role="tab" [class.active]="tableView() === 'plan'" [attr.aria-selected]="tableView() === 'plan'" (click)="setTableView('plan')">
+                <app-icon name="map" [size]="16" /> Plano
+              </button>
+              <button type="button" role="tab" [class.active]="tableView() === 'list'" [attr.aria-selected]="tableView() === 'list'" (click)="setTableView('list')">
+                <app-icon name="grid" [size]="16" /> Lista
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (busyTableNotice(); as busy) {
+          <div class="alert alert-info">
+            <app-icon name="info" />
+            <div class="alert-body">
+              <strong>{{ tableLabel(busy) }}</strong> ya tiene un pedido abierto. ¿Querés sumarle productos?
+              <div class="row notice-actions">
+                <button type="button" class="btn btn-primary btn-sm" (click)="addToBusyTable(busy)">
+                  <app-icon name="plus" [size]="16" /> Agregar a su pedido
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="tab.set('open'); busyTableNotice.set(null)">
+                  Ver pedidos abiertos
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" (click)="busyTableNotice.set(null)">Entendido</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (tables().length === 0) {
+          <app-empty-state
+            icon="table"
+            title="Todavía no hay mesas cargadas"
+            text="Por ahora podés tomar pedidos para llevar. Quien administra el local puede cargar las mesas desde Mesas."
+            [compact]="true"
+          />
+        } @else if (showPlan()) {
+          @if (floorAreas().length > 1) {
+            <div class="zone-tabs" role="tablist" aria-label="Zonas">
+              @for (area of floorAreas(); track area.id) {
+                <button
+                  type="button"
+                  role="tab"
+                  class="zone-tab"
+                  [class.active]="area.id === floorAreaId()"
+                  [attr.aria-selected]="area.id === floorAreaId()"
+                  (click)="floorAreaId.set(area.id)"
+                >
+                  {{ area.name }}
+                  @if (busyByArea()[area.id]) {
+                    <span class="zone-busy">{{ busyByArea()[area.id] }}</span>
+                  }
+                </button>
+              }
+            </div>
+          }
+          <div class="plan-wrap">
+            <app-floor-canvas [tables]="planTables()" [items]="planItems()" (pick)="pickFromPlan($event)" />
+          </div>
+          <div class="plan-legend">
+            <span><i class="dot free"></i> Libre</span>
+            <span><i class="dot busy"></i> Ocupada (minutos y total)</span>
+            <span><i class="dot late"></i> Hace más de {{ lateMinutes }} min</span>
+          </div>
+          @if (unplacedTables().length > 0) {
+            <p class="muted small unplaced-title">No están en el plano:</p>
+            <div class="chip-scroll">
+              @for (table of unplacedTables(); track table.id) {
+                <button type="button" class="chip" [class.chip-busy]="busyTableIds().has(table.id)" (click)="pickFromPlan('t:' + table.id)">
+                  {{ table.label || 'Mesa ' + table.number }}
+                </button>
+              }
+            </div>
+          }
+        } @else {
+          <div class="table-grid">
+            @for (table of tables(); track table.id) {
+              <button
+                type="button"
+                class="table-tile"
+                [class.busy]="busyTableIds().has(table.id)"
+                (click)="chooseTable(table)"
+              >
+                <span class="table-number">{{ table.number }}</span>
+                <span class="table-name">{{ table.label || 'Mesa ' + table.number }}</span>
+                @if (busyTableIds().has(table.id)) {
+                  <span class="badge badge-warning">Con pedido</span>
+                } @else if (table.capacity) {
+                  <span class="table-cap"><app-icon name="users" [size]="14" /> {{ table.capacity }}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      }
+
+      <!-- Paso 2 -->
+      @if (step() === 2) {
+        <div class="products-layout">
+          <section class="catalog">
+            <div class="where-bar">
+              <span class="where">
+                <app-icon [name]="diningOption() === 'DINE_IN' ? 'table' : 'bag'" [size]="18" />
+                {{ whereLabel() }}
+              </span>
+              @if (!addingTo()) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="step.set(1)">Cambiar</button>
+              }
+            </div>
+
+            <div class="search">
+              <app-icon name="search" [size]="18" />
+              <input
+                type="search"
+                placeholder="Buscar producto…"
+                aria-label="Buscar producto"
+                [ngModel]="searchTerm()"
+                (ngModelChange)="searchTerm.set($event)"
+              />
+            </div>
+
+            @if (usedCategories().length > 0) {
+              <div class="chip-scroll categories">
+                <button type="button" class="chip" [class.selected]="selectedCategoryId() === null" (click)="selectCategory(null)">
+                  Todo
+                </button>
+                @for (category of usedCategories(); track category.id) {
+                  <button
+                    type="button"
+                    class="chip"
+                    [class.selected]="selectedCategoryId() === category.id"
+                    (click)="selectCategory(category.id)"
+                  >
+                    {{ category.name }}
+                  </button>
+                }
+              </div>
+            }
+
+            @if (activeProducts().length === 0) {
+              <app-empty-state
+                icon="coffee"
+                title="La carta está vacía"
+                text="Todavía no hay productos cargados. Quien administra el local puede cargarlos desde Productos."
+              />
+            } @else {
+              <div class="product-grid">
+                @for (product of filteredProducts(); track product.id) {
+                  <div class="product" [class.in-cart]="quantityInCart(product.id) > 0">
+                    <button type="button" class="product-main" (click)="addToCart(product)" [attr.aria-label]="'Agregar ' + product.name">
+                      @if (product.imageUrl) {
+                        <img class="product-img" [src]="product.imageUrl" [alt]="" loading="lazy" />
+                      } @else {
+                        <span class="product-img placeholder">{{ productInitials(product.name) }}</span>
+                      }
+                      <span class="product-name">{{ product.name }}</span>
+                      <span class="product-price money">$ {{ product.price | number: '1.2-2' }}</span>
+                      @if (groupNames(product.id); as names) {
+                        <span class="product-opts"><app-icon name="sliders" [size]="13" /> {{ names }}</span>
+                      }
+                      @if (product.ingredients) {
+                        <span class="product-ing">{{ product.ingredients }}</span>
+                      }
+                    </button>
+                    @if (quantityInCart(product.id) > 0) {
+                      <div class="product-qty">
+                        <button type="button" class="qty-btn" (click)="decrementProduct(product.id, $event)" aria-label="Quitar uno">
+                          <app-icon name="minus" [size]="18" />
+                        </button>
+                        <span class="qty-value">{{ quantityInCart(product.id) }}</span>
+                        <button type="button" class="qty-btn" (click)="addToCart(product)" aria-label="Agregar uno">
+                          <app-icon name="plus" [size]="18" />
+                        </button>
+                      </div>
+                    } @else {
+                      <span class="add-hint"><app-icon name="plus" [size]="16" /></span>
+                    }
+                  </div>
+                } @empty {
+                  <p class="empty-inline">Ningún producto coincide con "{{ searchTerm() }}".</p>
+                }
+              </div>
+            }
+          </section>
+
+          <!-- Resumen al costado (compu/tablet) -->
+          <aside class="cart-side card">
+            <div class="card-header">
+              <span class="card-title">Pedido · {{ whereLabel() }}</span>
+            </div>
+            <div class="card-body">
+              @if (cart().length === 0) {
+                <p class="empty-inline">Tocá los productos para sumarlos acá.</p>
+              } @else {
+                <ul class="mini-cart">
+                  @for (line of cart(); track line.key) {
+                    <li>
+                      <span class="mini-qty">{{ line.quantity }}×</span>
+                      <span class="mini-name">
+                        {{ line.productName }}
+                        @if (line.optionLabels.length > 0) {
+                          <span class="line-options">{{ line.optionLabels.join(' · ') }}</span>
+                        }
+                      </span>
+                      <span class="money">$ {{ line.unitPrice * line.quantity | number: '1.2-2' }}</span>
+                    </li>
+                  }
+                </ul>
+                <div class="total-row">
+                  <span>Total</span>
+                  <strong class="money">$ {{ cartTotal() | number: '1.2-2' }}</strong>
+                </div>
+              }
+            </div>
+            <div class="card-footer">
+              <button type="button" class="btn btn-primary btn-lg btn-block" [disabled]="cart().length === 0" (click)="goToReview()">
+                Revisar y enviar <app-icon name="arrow-right" />
+              </button>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Barra de carrito (celular) -->
+        @if (cart().length > 0) {
+          <div class="cart-bar">
+            <button type="button" class="btn btn-primary btn-lg cart-bar-btn" (click)="goToReview()">
+              <span class="cart-bar-count">{{ cartItemCount() }}</span>
+              <span>Revisar pedido</span>
+              <span class="money">$ {{ cartTotal() | number: '1.2-2' }}</span>
+            </button>
+          </div>
+        }
+      }
+
+      <!-- Paso 3 -->
+      @if (step() === 3) {
+        <div class="review">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">
+                <app-icon [name]="diningOption() === 'DINE_IN' ? 'table' : 'bag'" [size]="18" />
+                {{ whereLabel() }}
+              </span>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="step.set(2)">
+                <app-icon name="plus" [size]="16" /> Agregar más
+              </button>
+            </div>
+            <div class="card-body">
+              <ul class="review-lines">
+                @for (line of cart(); track line.key) {
+                  <li>
+                    <div class="review-main">
+                      <div class="review-name">
+                        <strong>{{ line.productName }}</strong>
+                        @if (line.optionLabels.length > 0) {
+                          <span class="line-options">{{ line.optionLabels.join(' · ') }}</span>
+                        }
+                        <span class="muted small money">$ {{ line.unitPrice | number: '1.2-2' }} c/u</span>
+                      </div>
+                      <div class="stepper-qty">
+                        <button type="button" class="qty-btn" (click)="decrementLine(line.key)" aria-label="Quitar uno">
+                          <app-icon [name]="line.quantity === 1 ? 'trash' : 'minus'" [size]="18" />
+                        </button>
+                        <span class="qty-value">{{ line.quantity }}</span>
+                        <button type="button" class="qty-btn" (click)="incrementLine(line.key)" aria-label="Agregar uno">
+                          <app-icon name="plus" [size]="18" />
+                        </button>
+                      </div>
+                      <span class="review-subtotal money">$ {{ line.unitPrice * line.quantity | number: '1.2-2' }}</span>
+                    </div>
+                    @if (line.showNotes || line.notes) {
+                      <input
+                        type="text"
+                        class="line-note"
+                        placeholder="Ej.: sin azúcar, bien caliente…"
+                        [ngModel]="line.notes"
+                        (ngModelChange)="updateLineNotes(line.key, $event)"
+                      />
+                    } @else {
+                      <button type="button" class="link-btn" (click)="toggleLineNotes(line.key)">
+                        <app-icon name="note" [size]="15" /> Agregar una aclaración
+                      </button>
+                    }
+                  </li>
+                }
+              </ul>
+
+              @if (!addingTo()) {
+              <div class="field order-note">
+                <label for="order-notes">Nota para todo el pedido <span class="muted">(opcional)</span></label>
+                <textarea
+                  id="order-notes"
+                  rows="2"
+                  placeholder="Ej.: traer todo junto"
+                  [ngModel]="orderNotes()"
+                  (ngModelChange)="orderNotes.set($event)"
+                ></textarea>
+              </div>
+              }
+
+              <div class="total-row big">
+                <span>Total</span>
+                <strong class="money">$ {{ cartTotal() | number: '1.2-2' }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-actions">
+            <button type="button" class="btn btn-ghost" (click)="clearCart()">
+              <app-icon name="trash" [size]="18" /> Vaciar
+            </button>
+            <button type="button" class="btn btn-primary btn-lg send-btn" [disabled]="submitting()" (click)="submitOrder()">
+              <app-icon [name]="addingTo() ? 'plus' : 'send'" /> {{ addingTo() ? 'Agregar al pedido' : 'Enviar a cocina' }}
+            </button>
+          </div>
+        </div>
+      }
+    }
+  }
+
+  <!-- ===================== PEDIDOS ABIERTOS ===================== -->
+  @if (tab() === 'open') {
+    @if (sortedOpenOrders().length === 0) {
+      <app-empty-state
+        icon="receipt"
+        title="No hay pedidos abiertos"
+        text="Cuando cargues un pedido, lo vas a ver acá hasta que se cobre y se entregue."
+      >
+        <button type="button" class="btn btn-primary" (click)="tab.set('new'); startNewOrder()">
+          <app-icon name="plus" /> Tomar un pedido
+        </button>
+      </app-empty-state>
+    } @else {
+      @if (toCollectCount() > 0) {
+        <p class="muted small open-hint">
+          {{ toCollectCount() }} {{ toCollectCount() === 1 ? 'pedido falta' : 'pedidos faltan' }} cobrar. Cuando cocina lo
+          marca "Listo", aparece el botón "Entregar".
+        </p>
+      }
+      <div class="open-grid">
+        @for (order of sortedOpenOrders(); track order.id) {
+          <article class="card open-card" [class.ready]="order.status === 'READY'">
+            <div class="open-head">
+              <div class="open-where">
+                @if (order.channelName) {
+                  <span class="ch-badge" [class]="'ch-badge ' + channelTone(order.channelKind)">{{ order.channelName }}</span>
+                  <strong>#{{ order.channelOrderRef }}</strong>
+                } @else {
+                  <app-icon [name]="order.tableId ? 'table' : 'bag'" [size]="18" />
+                  <strong>{{ orderTableLabel(order) }}</strong>
+                }
+              </div>
+              <span class="badge" [class]="'badge status-' + order.status">{{ statusLabels[order.status] }}</span>
+            </div>
+            <p class="open-items">{{ itemsSummary(order) }}</p>
+            <div class="open-meta">
+              <span class="muted small"><app-icon name="clock" [size]="14" /> hace {{ elapsedMinutes(order) }} min</span>
+              <span class="open-amount">
+                @if (isPaid(order)) {
+                  <span class="badge badge-success"><app-icon name="check" [size]="12" [strokeWidth]="3" /> Pagado</span>
+                } @else {
+                  <span class="muted small">A cobrar</span>
+                  <strong class="money">$ {{ order.balanceDue | number: '1.2-2' }}</strong>
+                }
+              </span>
+            </div>
+            <div class="open-actions">
+              @if (!isPaid(order)) {
+                <button type="button" class="btn btn-success" (click)="openPayment(order)">
+                  <app-icon name="wallet" [size]="18" /> Cobrar
+                </button>
+              }
+              @if (canDeliver(order) && isPaid(order)) {
+                <button type="button" class="btn btn-primary" [disabled]="pendingActionId() === order.id" (click)="deliver(order)">
+                  <app-icon name="check" [size]="18" /> Entregar
+                </button>
+              }
+              <button type="button" class="btn btn-secondary btn-icon" (click)="startAddingTo(order)" title="Agregar productos" aria-label="Agregar productos a este pedido">
+                <app-icon name="plus" [size]="18" />
+              </button>
+              <button type="button" class="btn btn-secondary btn-icon" (click)="printCustomerTicket(order)" title="Imprimir ticket" aria-label="Imprimir ticket">
+                <app-icon name="printer" [size]="18" />
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  }
+}
+
+<app-option-picker
+  [product]="pickingProduct()"
+  [groups]="pickingGroups()"
+  (confirmed)="onOptionsPicked($event)"
+  (closed)="pickingProduct.set(null)"
+/>
+
+<app-payment-dialog
+  [order]="payingOrder()"
+  [tableLabel]="payingOrder() ? orderTableLabel(payingOrder()!) : ''"
+  (orderUpdated)="onPaymentUpdated($event)"
+  (printRequested)="printCustomerTicket($event)"
+  (closed)="payingOrder.set(null)"
+/>
+
+<!-- V19 — datos del pedido de app -->
+<app-modal
+  [open]="appFormOpen()"
+  [title]="'Pedido de ' + (appChannel()?.name ?? '')"
+  subtitle="Copiá los datos que muestra la tablet de la app."
+  size="narrow"
+  (closed)="appFormOpen.set(false)"
+>
+  <div class="stack">
+    <div class="field">
+      <label for="app-ref">Número del pedido</label>
+      <input id="app-ref" type="text" inputmode="text" maxlength="40" placeholder="Ej.: 1234" [ngModel]="appRef()" (ngModelChange)="appRef.set($event); appFormError.set(null)" (keydown.enter)="confirmApp()" />
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="app-customer">Cliente <span class="muted">(opcional)</span></label>
+        <input id="app-customer" type="text" maxlength="80" data-no-autofocus [ngModel]="appCustomer()" (ngModelChange)="appCustomer.set($event)" />
+      </div>
+      <div class="field">
+        <label for="app-pickup">Pasa a retirar <span class="muted">(opcional)</span></label>
+        <input id="app-pickup" type="time" data-no-autofocus [ngModel]="appPickup()" (ngModelChange)="appPickup.set($event)" />
+      </div>
+    </div>
+    <div class="field">
+      <span class="field-label">¿Quién lo cobra?</span>
+      <div class="segmented block">
+        <button type="button" [class.active]="appPaidByApp()" (click)="appPaidByApp.set(true)">Lo cobró la app</button>
+        <button type="button" [class.active]="!appPaidByApp()" (click)="appPaidByApp.set(false)">Lo cobramos acá</button>
+      </div>
+      <span class="help">
+        {{ appPaidByApp() ? 'Queda como pagado y no entra en la caja del mostrador (lo liquida la app).' : 'Por ejemplo, si lo paga en efectivo al retirar: lo cobrás desde "Pedidos abiertos".' }}
+      </span>
+    </div>
+    @if (appFormError()) {
+      <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ appFormError() }}</div></div>
+    }
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="appFormOpen.set(false)">Cancelar</button>
+    <button type="button" class="btn btn-primary" (click)="confirmApp()">Elegir productos <app-icon name="arrow-right" [size]="18" /></button>
+  </div>
+</app-modal>

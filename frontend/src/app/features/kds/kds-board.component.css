@@ -1,0 +1,482 @@
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.live .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.live-connected .dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
+}
+
+.live-connecting .dot,
+.live-reconnecting .dot {
+  background: var(--warning);
+}
+
+.column-tabs {
+  display: none;
+  margin-bottom: 1rem;
+}
+
+.column-tabs button {
+  padding: 0 0.4rem;
+}
+
+.count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  min-height: 200px;
+}
+
+.column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.35rem 0.5rem;
+  border-bottom: 3px solid var(--border-strong);
+}
+
+.head-PENDING {
+  border-bottom-color: var(--info);
+}
+
+.head-IN_PREPARATION {
+  border-bottom-color: var(--warning);
+}
+
+.head-READY {
+  border-bottom-color: var(--success);
+}
+
+.column-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.column-count {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.column-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+/* ---------- Tarjeta de pedido ---------- */
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--success);
+  box-shadow: var(--shadow-sm);
+}
+
+.ticket.urgency-warn {
+  border-left-color: var(--warning);
+}
+
+.ticket.urgency-late {
+  border-left-color: var(--danger);
+}
+
+.ticket.fresh {
+  animation: arrive 1.2s ease 2;
+}
+
+@keyframes arrive {
+  0%,
+  100% {
+    box-shadow: var(--shadow-sm);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+}
+
+.ticket-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ticket-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.1rem;
+  min-width: 0;
+}
+
+.ticket-where strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: var(--success-soft);
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.urgency-warn .timer {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.urgency-late .timer {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.items li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.qty {
+  min-width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.2rem;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.item-option {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--primary);
+}
+
+.item-note {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--warning);
+}
+
+.order-note {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.pay-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+}
+
+.pay-line.paid {
+  justify-content: flex-start;
+  color: var(--success);
+  font-weight: 650;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.main-action {
+  width: 100%;
+}
+
+.secondary-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.15rem;
+}
+
+.waiting {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.sw-ok {
+  background: var(--success);
+}
+
+.sw-warn {
+  background: var(--warning);
+}
+
+.sw-late {
+  background: var(--danger);
+}
+
+/* ---------- Tablet / celular ---------- */
+
+@media (max-width: 900px) {
+  .column-tabs {
+    display: flex;
+  }
+
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .column.mobile-hidden {
+    display: none;
+  }
+
+  .column {
+    background: transparent;
+    padding: 0;
+  }
+
+  .column-head {
+    display: none;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .hide-sm {
+    display: none;
+  }
+}
+
+/* ---------- Modo TV / pantalla completa ---------- */
+
+.kds.tv {
+  font-size: 1.12rem;
+}
+
+.kds.tv .page-header {
+  margin-bottom: 0.75rem;
+}
+
+.kds.tv .name {
+  font-size: 1.2rem;
+}
+
+.kds.tv .ticket-where {
+  font-size: 1.35rem;
+}
+
+.kds.tv .qty {
+  min-width: 36px;
+  height: 36px;
+  font-size: 1.1rem;
+}
+
+.kds.tv .column-count {
+  font-size: 1.8rem;
+}
+
+@media (min-width: 901px) {
+  .kds.tv .board {
+    min-height: calc(100dvh - 110px);
+  }
+
+  .kds.tv .column {
+    min-height: calc(100dvh - 110px);
+  }
+}
+
+/* ---------- Pedidos con agregados (hoja de ruta, paso 1) ---------- */
+
+.additions-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.items li.done {
+  opacity: 0.45;
+}
+
+.items li.done .name {
+  text-decoration: line-through;
+}
+
+.items li.added .qty {
+  background: var(--info);
+  color: #fff;
+}
+
+.added-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 0.72rem;
+  font-weight: 750;
+  vertical-align: middle;
+  text-decoration: none;
+}
+
+/* V19 — pedido de app: a qué hora retira el repartidor */
+.app-pickup {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0.4rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* V19 — pedido de app: el número no se corta (el cartel de la app pasa arriba si no entra) */
+.ticket-where:has(.ch-badge) {
+  flex-wrap: wrap;
+  row-gap: 0.2rem;
+}
+
+.ticket-where .ch-badge + strong {
+  overflow: visible;
+}
