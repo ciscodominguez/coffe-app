@@ -1,0 +1,111 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Categorías</h1>
+    <p class="page-subtitle">Agrupan tu carta. Aparecen como pestañas al tomar un pedido, en este mismo orden.</p>
+  </div>
+  @if (canManage() && sortedCategories().length > 0) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="toggleCreateForm()"><app-icon name="plus" /> Nueva categoría</button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else if (sortedCategories().length === 0) {
+  <app-empty-state
+    icon="tag"
+    title="Armá las categorías de tu carta"
+    text="Por ejemplo: Cafetería, Pastelería, Bebidas frías. Tocá una sugerencia para crearla al instante, o creá la tuya."
+  >
+    @if (canManage()) {
+      <div class="suggestions">
+        @for (name of suggestions; track name) {
+          <button type="button" class="chip" [disabled]="creating()" (click)="quickCreate(name)">
+            <app-icon name="plus" [size]="15" /> {{ name }}
+          </button>
+        }
+      </div>
+      <button type="button" class="btn btn-primary" (click)="toggleCreateForm()">Crear otra</button>
+    }
+  </app-empty-state>
+} @else {
+  <div class="list card">
+    @for (category of sortedCategories(); track category.id; let first = $first; let last = $last) {
+      <div class="item" [class.is-inactive]="!category.isActive">
+        @if (canManage()) {
+          <div class="order-btns">
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" [disabled]="first || saving()" (click)="move(category, -1)" aria-label="Subir">
+              <app-icon name="chevron-down" [size]="16" class="up" />
+            </button>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" [disabled]="last || saving()" (click)="move(category, 1)" aria-label="Bajar">
+              <app-icon name="chevron-down" [size]="16" />
+            </button>
+          </div>
+        }
+        <div class="item-text">
+          <strong>{{ category.name }}</strong>
+          @if (category.description) {
+            <span class="muted small">{{ category.description }}</span>
+          }
+        </div>
+        @if (!category.isActive) {
+          <span class="badge">De baja</span>
+        }
+        @if (canManage()) {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(category)">
+            <app-icon name="edit" [size]="16" /> <span class="hide-xs">Editar</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- Nueva -->
+<app-modal [open]="showCreateForm()" title="Nueva categoría" size="narrow" [dismissable]="!creating()" (closed)="toggleCreateForm()">
+  <form [formGroup]="createForm" (ngSubmit)="createCategory()" class="stack" id="new-category-form">
+    <div class="field">
+      <label for="new-name">Nombre</label>
+      <input id="new-name" type="text" formControlName="name" placeholder="Ej.: Pastelería" />
+    </div>
+    <div class="field">
+      <label for="new-description">Descripción <span class="muted">(opcional)</span></label>
+      <input id="new-description" type="text" formControlName="description" />
+    </div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="toggleCreateForm()">Cancelar</button>
+    <button type="submit" form="new-category-form" class="btn btn-primary" [disabled]="createForm.invalid || creating()">
+      {{ creating() ? 'Creando…' : 'Crear' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Editar -->
+<app-modal [open]="!!editingId()" [title]="'Editar ' + (editingCategory()?.name ?? '')" size="narrow" [dismissable]="!saving()" (closed)="cancelEdit()">
+  @if (editingCategory(); as category) {
+    <form [formGroup]="editForm" (ngSubmit)="save(category.id)" class="stack" id="edit-category-form">
+      <div class="field">
+        <label for="edit-name">Nombre</label>
+        <input id="edit-name" type="text" formControlName="name" />
+      </div>
+      <div class="field">
+        <label for="edit-description">Descripción <span class="muted">(opcional)</span></label>
+        <input id="edit-description" type="text" formControlName="description" />
+      </div>
+      <button type="button" class="btn" [class.btn-danger-ghost]="category.isActive" [class.btn-secondary]="!category.isActive" [disabled]="saving()" (click)="toggleActive(category)">
+        <app-icon [name]="category.isActive ? 'trash' : 'refresh'" [size]="18" />
+        {{ category.isActive ? 'Dar de baja (se oculta de la carta)' : 'Volver a mostrar en la carta' }}
+      </button>
+    </form>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelEdit()">Cancelar</button>
+    <button type="submit" form="edit-category-form" class="btn btn-primary" [disabled]="editForm.invalid || saving()">
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>
