@@ -1,0 +1,233 @@
+<div class="kds" [class.tv]="layout.immersive()">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Cocina / Barra</h1>
+      @if (!layout.immersive()) {
+        <p class="page-subtitle">
+          Los pedidos entran solos. Tocá el botón grande de cada uno para pasarlo al siguiente paso.
+        </p>
+      }
+    </div>
+    <div class="page-actions">
+      <span class="live" [class]="'live live-' + realtimeStatus()">
+        <span class="dot"></span>
+        @switch (realtimeStatus()) {
+          @case ('connected') {
+            En vivo
+          }
+          @case ('connecting') {
+            Conectando…
+          }
+          @case ('reconnecting') {
+            Reconectando…
+          }
+          @default {
+            Actualizando cada 20 s
+          }
+        }
+      </span>
+      <button type="button" class="btn btn-secondary" (click)="toggleImmersive()">
+        <app-icon [name]="layout.immersive() ? 'minimize' : 'maximize'" [size]="18" />
+        <span class="hide-sm">{{ layout.immersive() ? 'Salir de pantalla completa' : 'Pantalla completa' }}</span>
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading"><span class="spinner"></span> Cargando pedidos…</div>
+  } @else if (errorMessage()) {
+    <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+  } @else {
+    @if (totalOpen() === 0) {
+      <app-empty-state
+        icon="flame"
+        title="Todo al día"
+        text="No hay pedidos pendientes. Cuando alguien cargue uno, aparece acá al instante (no hace falta recargar)."
+      />
+    } @else {
+      <!-- Pestañas por estado (celular) -->
+      <div class="segmented block column-tabs" role="tablist">
+        @for (status of columns; track status) {
+          <button
+            type="button"
+            role="tab"
+            [class.active]="mobileColumn() === status"
+            [attr.aria-selected]="mobileColumn() === status"
+            (click)="mobileColumn.set(status)"
+          >
+            {{ shortLabels[status] }}
+            <span class="count" [class]="'count status-' + status">{{ ordersFor(status).length }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="board">
+        @for (status of columns; track status) {
+          <section class="column" [class.mobile-hidden]="mobileColumn() !== status" [attr.aria-label]="statusLabels[status]">
+            <header class="column-head" [class]="'column-head head-' + status">
+              <div>
+                <h2>{{ statusLabels[status] }}</h2>
+                <span class="column-hint">{{ columnHints[status] }}</span>
+              </div>
+              <span class="column-count">{{ ordersFor(status).length }}</span>
+            </header>
+
+            <div class="cards">
+              @for (order of ordersFor(status); track order.id) {
+                <article
+                  class="ticket"
+                  [class.fresh]="freshIds().has(order.id)"
+                  [class]="'ticket urgency-' + urgency(order)"
+                >
+                  <header class="ticket-head">
+                    <div class="ticket-where">
+                      @if (order.channelName) {
+                        <span class="ch-badge" [class]="'ch-badge ' + channelTone(order.channelKind)">{{ order.channelName }}</span>
+                        <strong>#{{ order.channelOrderRef }}</strong>
+                      } @else {
+                        <app-icon [name]="order.tableId ? 'table' : 'bag'" [size]="18" />
+                        <strong>{{ tableLabelFor(order) }}</strong>
+                      }
+                    </div>
+                    <span class="timer">
+                      <app-icon name="clock" [size]="15" />
+                      {{ elapsedLabel(order) }}
+                    </span>
+                  </header>
+
+                  @if (order.channelName && (order.channelPickupAt || order.channelCustomer)) {
+                    <p class="app-pickup">
+                      @if (order.channelPickupAt) {
+                        <app-icon name="clock" [size]="14" /> Retira {{ order.channelPickupAt | date: 'HH:mm' }}
+                      }
+                      @if (order.channelCustomer) {
+                        <span class="muted">· {{ order.channelCustomer }}</span>
+                      }
+                    </p>
+                  }
+                  @if (hasAdditions(order)) {
+                    <p class="additions-note"><app-icon name="plus" [size]="14" /> Le agregaron cosas: preparar lo marcado</p>
+                  }
+
+                  <ul class="items">
+                    @for (item of order.items; track item.id) {
+                      <li [class.done]="itemState(order, item) === 'done'" [class.added]="itemState(order, item) === 'added'">
+                        <span class="qty">{{ item.quantity }}</span>
+                        <div class="item-text">
+                          <span class="name">
+                            {{ item.productName }}
+                            @if (itemState(order, item) === 'added') {
+                              <span class="added-badge">+ Agregado</span>
+                            }
+                          </span>
+                          @for (option of item.options ?? []; track $index) {
+                            <span class="item-option">• {{ option.name }}</span>
+                          }
+                          @if (item.notes) {
+                            <span class="item-note"><app-icon name="note" [size]="13" /> {{ item.notes }}</span>
+                          }
+                        </div>
+                      </li>
+                    }
+                  </ul>
+
+                  @if (order.notes) {
+                    <p class="order-note"><app-icon name="info" [size]="15" /> {{ order.notes }}</p>
+                  }
+
+                  @if (canCollectPayment()) {
+                    <div class="pay-line" [class.paid]="isFullyPaid(order)">
+                      @if (isFullyPaid(order)) {
+                        <app-icon name="check" [size]="15" [strokeWidth]="3" /> Pagado
+                      } @else {
+                        <span>A cobrar</span>
+                        <strong class="money">$ {{ order.balanceDue | number: '1.2-2' }}</strong>
+                      }
+                    </div>
+                  }
+
+                  @if (confirmingCancelId() === order.id) {
+                    <div class="confirm">
+                      <span>¿Cancelar este pedido? No se puede deshacer.</span>
+                      <div class="row">
+                        <button type="button" class="btn btn-danger btn-sm" [disabled]="pendingActionId() === order.id" (click)="confirmCancel(order)">
+                          Sí, cancelar
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCancelRequest()">No</button>
+                      </div>
+                    </div>
+                  } @else {
+                    <footer class="ticket-actions">
+                      @if (advanceTarget(order); as target) {
+                        @if (canTransition(order, target)) {
+                          @if (target === 'DELIVERED' && !isFullyPaid(order)) {
+                            @if (canCollectPayment()) {
+                              <button type="button" class="btn btn-success btn-lg main-action" (click)="startPayment(order)">
+                                <app-icon name="wallet" /> Cobrar para entregar
+                              </button>
+                            } @else {
+                              <span class="waiting">Esperando que lo cobren</span>
+                            }
+                          } @else {
+                            <button
+                              type="button"
+                              class="btn btn-lg main-action"
+                              [class.btn-primary]="target !== 'READY'"
+                              [class.btn-success]="target === 'READY'"
+                              [disabled]="pendingActionId() === order.id"
+                              (click)="advance(order)"
+                            >
+                              <app-icon [name]="advanceIcon(target)" /> {{ advanceLabel(target) }}
+                            </button>
+                          }
+                        }
+                      }
+                      <div class="secondary-actions">
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="printKitchenTicket(order)" title="Imprimir comanda" aria-label="Imprimir comanda">
+                          <app-icon name="printer" [size]="18" />
+                        </button>
+                        @if (canCollectPayment()) {
+                          <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="printCustomerTicket(order)" title="Imprimir ticket para el cliente" aria-label="Imprimir ticket para el cliente">
+                            <app-icon name="receipt" [size]="18" />
+                          </button>
+                          @if (!isFullyPaid(order) && order.status !== 'READY') {
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="startPayment(order)" title="Cobrar" aria-label="Cobrar">
+                              <app-icon name="wallet" [size]="18" />
+                            </button>
+                          }
+                        }
+                        @if (canTransition(order, 'CANCELLED')) {
+                          <button type="button" class="btn btn-danger-ghost btn-icon btn-sm" (click)="requestCancel(order)" title="Cancelar pedido" aria-label="Cancelar pedido">
+                            <app-icon name="x" [size]="18" />
+                          </button>
+                        }
+                      </div>
+                    </footer>
+                  }
+                </article>
+              } @empty {
+                <p class="column-empty">Nada por acá.</p>
+              }
+            </div>
+          </section>
+        }
+      </div>
+
+      @if (!layout.immersive()) {
+        <p class="legend">
+          <span><i class="sw sw-ok"></i> a tiempo</span>
+          <span><i class="sw sw-warn"></i> más de 10 min</span>
+          <span><i class="sw sw-late"></i> más de 20 min</span>
+        </p>
+      }
+    }
+  }
+</div>
+
+<app-payment-dialog
+  [order]="payingOrder()"
+  [tableLabel]="payingOrder() ? tableLabelFor(payingOrder()!) : ''"
+  (orderUpdated)="onPaymentUpdated($event)"
+  (printRequested)="printCustomerTicket($event)"
+  (closed)="payingOrder.set(null)"
+/>
