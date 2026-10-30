@@ -1,0 +1,156 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Mesas</h1>
+    <p class="page-subtitle">Las mesas del salón que el equipo elige al tomar un pedido.</p>
+  </div>
+  <div class="page-actions">
+    @if (tables().length > 0) {
+      <div class="segmented" role="tablist" aria-label="Cómo ver las mesas">
+        <button type="button" role="tab" [class.active]="view() === 'plan'" [attr.aria-selected]="view() === 'plan'" (click)="setView('plan')">
+          <app-icon name="map" [size]="16" /> Plano
+        </button>
+        <button type="button" role="tab" [class.active]="view() === 'list'" [attr.aria-selected]="view() === 'list'" (click)="setView('list')">
+          <app-icon name="grid" [size]="16" /> Lista
+        </button>
+      </div>
+    }
+    @if (inactiveCount() > 0 && view() === 'list') {
+      <label class="check-row">
+        <input type="checkbox" [checked]="showInactive()" (change)="showInactive.set(!showInactive())" />
+        Ver dadas de baja ({{ inactiveCount() }})
+      </label>
+    }
+    @if (canManage()) {
+      <button type="button" class="btn btn-primary" (click)="openCreate()"><app-icon name="plus" /> Agregar mesas</button>
+    }
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando mesas…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else if (visibleTables().length === 0) {
+  <app-empty-state
+    icon="table"
+    title="Todavía no hay mesas"
+    text="Cargalas de una vez (por ejemplo, de la 1 a la 12). Mientras tanto, el equipo puede tomar pedidos para llevar."
+  >
+    @if (canManage()) {
+      <button type="button" class="btn btn-primary" (click)="openCreate()"><app-icon name="plus" /> Agregar mesas</button>
+    }
+  </app-empty-state>
+} @else if (view() === 'plan' && location()) {
+  <app-floor-editor [locationId]="location()!" [canManage]="canManage()" (editTable)="startEdit($event)" (showList)="setView('list')" />
+} @else {
+  @if (canManage()) {
+    <p class="muted small tip"><app-icon name="info" [size]="15" /> Tocá una mesa para ponerle nombre, cambiar los lugares o darla de baja.</p>
+  }
+  <div class="tables">
+    @for (table of visibleTables(); track table.id) {
+      <button
+        type="button"
+        class="tile"
+        [class.inactive]="!table.isActive"
+        [class.readonly]="!canManage()"
+        (click)="startEdit(table)"
+      >
+        <span class="num">{{ table.number }}</span>
+        <span class="name">{{ table.label || 'Mesa ' + table.number }}</span>
+        <span class="meta">
+          @if (table.capacity) {
+            <span><app-icon name="users" [size]="13" /> {{ table.capacity }}</span>
+          }
+          @if (!table.isActive) {
+            <span class="badge">De baja</span>
+          } @else if (table.status !== 'FREE') {
+            <span class="badge badge-warning">{{ statusLabels[table.status] }}</span>
+          }
+        </span>
+      </button>
+    }
+  </div>
+}
+
+<!-- Alta -->
+<app-modal [open]="showCreate()" title="Agregar mesas" (closed)="showCreate.set(false)" [dismissable]="!saving()">
+  <div class="stack">
+    <div class="segmented block">
+      <button type="button" [class.active]="createMode() === 'many'" (click)="createMode.set('many')">Varias de una vez</button>
+      <button type="button" [class.active]="createMode() === 'one'" (click)="createMode.set('one')">Una sola</button>
+    </div>
+
+    @if (createMode() === 'many') {
+      <div class="form-grid">
+        <div class="field">
+          <label for="from">Desde la mesa</label>
+          <input id="from" type="number" inputmode="numeric" min="1" [ngModel]="fromNumber()" (ngModelChange)="fromNumber.set(+$event || 0)" />
+        </div>
+        <div class="field">
+          <label for="to">Hasta la mesa</label>
+          <input id="to" type="number" inputmode="numeric" min="1" [ngModel]="toNumber()" (ngModelChange)="toNumber.set(+$event || 0)" />
+        </div>
+      </div>
+      <p class="muted small">Se van a crear {{ manyCount() }} {{ manyCount() === 1 ? 'mesa' : 'mesas' }}. Las que ya existan se saltean.</p>
+    } @else {
+      <div class="form-grid">
+        <div class="field">
+          <label for="num">Número</label>
+          <input id="num" type="number" inputmode="numeric" min="1" [ngModel]="newNumber()" (ngModelChange)="newNumber.set(+$event || 0)" />
+        </div>
+        <div class="field">
+          <label for="label">Nombre <span class="muted">(opcional)</span></label>
+          <input id="label" type="text" maxlength="50" placeholder="Ej.: Ventana, Vereda" [ngModel]="newLabel()" (ngModelChange)="newLabel.set($event)" />
+        </div>
+      </div>
+    }
+
+    <div class="field">
+      <label for="cap">Lugares por mesa <span class="muted">(opcional)</span></label>
+      <input id="cap" type="number" inputmode="numeric" min="1" [ngModel]="newCapacity()" (ngModelChange)="newCapacity.set($event === '' || $event === null ? null : +$event)" />
+    </div>
+
+    @if (formError()) {
+      <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ formError() }}</div></div>
+    }
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="showCreate.set(false)">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="create()">
+      {{ saving() ? 'Creando…' : createMode() === 'many' ? 'Crear ' + manyCount() + ' mesas' : 'Crear mesa' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Edición -->
+<app-modal [open]="!!editing()" [title]="'Mesa ' + (editing()?.number ?? '')" size="narrow" (closed)="editing.set(null)" [dismissable]="!saving()">
+  @if (editing(); as table) {
+    <div class="stack">
+      <div class="form-grid">
+        <div class="field">
+          <label for="e-num">Número</label>
+          <input id="e-num" type="number" inputmode="numeric" min="1" [ngModel]="editNumber()" (ngModelChange)="editNumber.set(+$event || 0)" />
+        </div>
+        <div class="field">
+          <label for="e-cap">Lugares</label>
+          <input id="e-cap" type="number" inputmode="numeric" min="1" [ngModel]="editCapacity()" (ngModelChange)="editCapacity.set($event === '' || $event === null ? null : +$event)" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="e-label">Nombre <span class="muted">(opcional)</span></label>
+        <input id="e-label" type="text" maxlength="50" placeholder="Ej.: Ventana" [ngModel]="editLabel()" (ngModelChange)="editLabel.set($event)" />
+      </div>
+      @if (formError()) {
+        <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ formError() }}</div></div>
+      }
+      <button type="button" class="btn" [class.btn-danger-ghost]="table.isActive" [class.btn-secondary]="!table.isActive" [disabled]="saving()" (click)="toggleActive(table)">
+        <app-icon [name]="table.isActive ? 'trash' : 'refresh'" [size]="18" />
+        {{ table.isActive ? 'Dar de baja esta mesa' : 'Reactivar esta mesa' }}
+      </button>
+    </div>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="editing.set(null)">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveEdit()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+  </div>
+</app-modal>

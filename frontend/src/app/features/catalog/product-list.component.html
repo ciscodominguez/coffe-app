@@ -1,0 +1,329 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Productos</h1>
+    <p class="page-subtitle">
+      @if (canManage()) {
+        Tu carta: lo que el equipo ve al tomar un pedido. Con foto se encuentra más rápido.
+      } @else {
+        Buscá un producto para ver su precio y sus ingredientes.
+      }
+    </p>
+  </div>
+  @if (canManage() && products().length > 0) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="toggleCreateForm()"><app-icon name="plus" /> Nuevo producto</button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando carta…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else if (products().length === 0) {
+  @if (activeCategories().length === 0 && canManage()) {
+    <app-empty-state
+      icon="tag"
+      title="Primero, las categorías"
+      text="Cada producto va dentro de una categoría (Cafetería, Pastelería…). Creá al menos una y volvé acá."
+    >
+      <a class="btn btn-primary" routerLink="/categorias">Ir a Categorías</a>
+    </app-empty-state>
+  } @else {
+    <app-empty-state
+      icon="coffee"
+      title="La carta está vacía"
+      [text]="canManage() ? 'Cargá tu primer producto: nombre, precio y, si querés, una foto.' : 'Quien administra el local todavía no cargó productos.'"
+    >
+      @if (canManage()) {
+        <button type="button" class="btn btn-primary" (click)="toggleCreateForm()"><app-icon name="plus" /> Cargar el primero</button>
+      }
+    </app-empty-state>
+  }
+} @else {
+  <div class="filters">
+    <div class="search">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="search"
+        placeholder="Buscar por nombre o código…"
+        aria-label="Buscar producto"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
+      />
+    </div>
+    <div class="chip-scroll">
+      <button type="button" class="chip" [class.selected]="selectedCategoryId() === null" (click)="selectedCategoryId.set(null)">
+        Todos <span class="chip-count">{{ countIn(null) }}</span>
+      </button>
+      @for (category of activeCategories(); track category.id) {
+        <button type="button" class="chip" [class.selected]="selectedCategoryId() === category.id" (click)="selectedCategoryId.set(category.id)">
+          {{ category.name }} <span class="chip-count">{{ countIn(category.id) }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="grid">
+    @for (product of filteredProducts(); track product.id) {
+      <article class="card product" [class.is-inactive]="!product.isActive">
+        @if (product.imageUrl) {
+          <img class="img" [src]="product.imageUrl" [alt]="product.name" loading="lazy" />
+        } @else {
+          <div class="img placeholder">{{ productInitials(product.name) }}</div>
+        }
+        <div class="body">
+          <span class="muted small">{{ categoryName(product.categoryId) }}</span>
+          <strong class="name">{{ product.name }}</strong>
+          <span class="price money">$ {{ product.price | number: '1.2-2' }}</span>
+          @if (product.ingredients) {
+            <p class="ingredients"><app-icon name="list" [size]="14" /> {{ product.ingredients }}</p>
+          }
+          <div class="tags">
+            @if (!product.isActive) {
+              <span class="badge">De baja</span>
+            }
+            @if (product.stockMode === 'DIRECT') {
+              <span class="badge badge-info">Stock propio</span>
+            }
+            @if (product.stockMode === 'RECIPE') {
+              <span class="badge badge-info">Por receta</span>
+            }
+            @if (product.sku) {
+              <span class="badge">#{{ product.sku }}</span>
+            }
+          </div>
+          @if (optionGroupNames(product.id); as names) {
+            <p class="option-names"><app-icon name="sliders" [size]="14" /> {{ names }}</p>
+          }
+        </div>
+        @if (canManage()) {
+          <div class="actions">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(product)"><app-icon name="edit" [size]="16" /> Editar</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="toggleStockConfig(product)"><app-icon name="box" [size]="16" /> Stock</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="openOptions(product)"><app-icon name="sliders" [size]="16" /> Opciones</button>
+          </div>
+        }
+      </article>
+    } @empty {
+      <p class="empty-inline">No hay productos que coincidan con la búsqueda.</p>
+    }
+  </div>
+}
+
+<!-- Campos compartidos por "nuevo" y "editar" -->
+<ng-template #fields let-f let-mode="mode">
+  <div [formGroup]="f" class="stack">
+    <div class="image-pick">
+      @if (f.controls.imageUrl.value) {
+        <img class="preview" [src]="f.controls.imageUrl.value" alt="Foto del producto" />
+      } @else {
+        <div class="preview placeholder"><app-icon name="image" [size]="28" /></div>
+      }
+      <div class="stack-sm">
+        <label class="btn btn-secondary btn-sm file-btn" [class.disabled]="uploadingImage()">
+          <app-icon name="image" [size]="16" /> {{ f.controls.imageUrl.value ? 'Cambiar foto' : 'Elegir foto' }}
+          <input type="file" accept="image/jpeg,image/png,image/webp" [disabled]="uploadingImage()" (change)="onImageSelected($event, mode)" />
+        </label>
+        @if (uploadingImage()) {
+          <span class="muted small"><span class="spinner tiny"></span> Subiendo…</span>
+        } @else if (f.controls.imageUrl.value) {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="f.controls.imageUrl.setValue(''); f.markAsDirty()">Quitar foto</button>
+        } @else {
+          <span class="muted small">Opcional. JPG, PNG o WebP.</span>
+        }
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="field span-all">
+        <label [for]="mode + '-name'">Nombre</label>
+        <input [id]="mode + '-name'" type="text" formControlName="name" placeholder="Ej.: Café con leche" />
+      </div>
+      <div class="field">
+        <label [for]="mode + '-price'">Precio</label>
+        <div class="input-money">
+          <input [id]="mode + '-price'" type="number" inputmode="decimal" step="0.01" min="0" formControlName="price" />
+        </div>
+      </div>
+      <div class="field">
+        <label [for]="mode + '-category'">Categoría</label>
+        <select [id]="mode + '-category'" formControlName="categoryId">
+          <option value="" disabled>Elegí una</option>
+          @for (category of activeCategories(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field span-all">
+        <label [for]="mode + '-ingredients'">Ingredientes <span class="muted">(opcional)</span></label>
+        <textarea [id]="mode + '-ingredients'" rows="2" formControlName="ingredients" placeholder="Ej.: leche entera, café de especialidad"></textarea>
+        <span class="help">El equipo los consulta cuando un cliente pregunta (alergias, etc.).</span>
+      </div>
+      <div class="field">
+        <label [for]="mode + '-description'">Descripción <span class="muted">(opcional)</span></label>
+        <input [id]="mode + '-description'" type="text" formControlName="description" />
+      </div>
+      <div class="field">
+        <label [for]="mode + '-sku'">Código <span class="muted">(opcional)</span></label>
+        <input [id]="mode + '-sku'" type="text" formControlName="sku" />
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<!-- Nuevo -->
+<app-modal [open]="showCreateForm()" title="Nuevo producto" size="wide" [dismissable]="!creating()" (closed)="toggleCreateForm()">
+  <ng-container *ngTemplateOutlet="fields; context: { $implicit: createForm, mode: 'create' }" />
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="toggleCreateForm()">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="createForm.invalid || creating() || uploadingImage()" (click)="createProduct()">
+      {{ creating() ? 'Guardando…' : 'Agregar a la carta' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Editar -->
+<app-modal [open]="!!editingId()" [title]="'Editar ' + (editingProduct()?.name ?? '')" size="wide" [dismissable]="!saving()" (closed)="cancelEdit()">
+  @if (editingProduct(); as product) {
+    <ng-container *ngTemplateOutlet="fields; context: { $implicit: editForm, mode: 'edit' }" />
+    <div class="divider"></div>
+    <button type="button" class="btn" [class.btn-danger-ghost]="product.isActive" [class.btn-secondary]="!product.isActive" [disabled]="saving()" (click)="toggleActive(product)">
+      <app-icon [name]="product.isActive ? 'trash' : 'refresh'" [size]="18" />
+      {{ product.isActive ? 'Dar de baja (se oculta de la carta)' : 'Volver a mostrar en la carta' }}
+    </button>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelEdit()">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="editForm.invalid || saving() || uploadingImage()" (click)="save(editingId()!)">
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Stock del producto -->
+<app-modal
+  [open]="!!configuringStockId()"
+  [title]="'Stock de ' + (configuringProduct()?.name ?? '')"
+  subtitle="¿Querés que la app descuente stock cuando se vende?"
+  size="wide"
+  [dismissable]="!savingStockConfig()"
+  (closed)="cancelStockConfig()"
+>
+  @if (configuringProduct(); as product) {
+    <div class="stack">
+      <div class="modes">
+        <button type="button" class="mode" [class.selected]="stockConfigMode() === 'NONE'" (click)="onStockModeChange(product.id, 'NONE')">
+          <strong>Sin control</strong>
+          <span class="muted small">No se cuenta stock. Ideal para lo que se prepara al momento sin medir.</span>
+        </button>
+        <button type="button" class="mode" [class.selected]="stockConfigMode() === 'DIRECT'" (click)="onStockModeChange(product.id, 'DIRECT')">
+          <strong>Por unidad</strong>
+          <span class="muted small">Productos ya hechos: medialunas, sándwiches, botellas. Cada venta resta 1.</span>
+        </button>
+        <button type="button" class="mode" [class.selected]="stockConfigMode() === 'RECIPE'" (click)="onStockModeChange(product.id, 'RECIPE')">
+          <strong>Por receta</strong>
+          <span class="muted small">Cada venta descuenta insumos. Ej.: 1 cortado = 18 g de café + 50 ml de leche.</span>
+        </button>
+      </div>
+
+      @if (stockConfigMode() === 'DIRECT') {
+        <div class="field">
+          <label for="stock-min">Avisarme cuando queden menos de… <span class="muted">(opcional)</span></label>
+          <input id="stock-min" type="number" inputmode="numeric" step="1" min="0" [ngModel]="stockConfigMinStock()" (ngModelChange)="stockConfigMinStock.set($event)" />
+          <span class="help">La cantidad actual se carga en Insumos y stock → "Ajustar".</span>
+        </div>
+      }
+
+      @if (stockConfigMode() === 'RECIPE') {
+        @if (loadingRecipe()) {
+          <div class="loading"><span class="spinner"></span> Cargando receta…</div>
+        } @else if (activeIngredients().length === 0) {
+          <div class="alert alert-info">
+            <app-icon name="info" />
+            <div class="alert-body">Todavía no hay insumos cargados. Crealos en <a routerLink="/insumos" (click)="cancelStockConfig()">Insumos y stock</a> y volvé.</div>
+          </div>
+        } @else {
+          <div class="recipe">
+            <span class="label">Para hacer 1 unidad se usa:</span>
+            @for (row of stockConfigRecipe(); track $index) {
+              <div class="recipe-row">
+                <select [ngModel]="row.ingredientId" (ngModelChange)="updateRecipeIngredient($index, $event)" aria-label="Insumo">
+                  <option value="" disabled>Elegí un insumo</option>
+                  @for (ingredient of activeIngredients(); track ingredient.id) {
+                    <option [value]="ingredient.id">{{ ingredient.name }} ({{ ingredient.unit }})</option>
+                  }
+                </select>
+                <input
+                  type="number"
+                  inputmode="decimal"
+                  step="0.001"
+                  min="0"
+                  placeholder="Cantidad"
+                  aria-label="Cantidad por unidad"
+                  [ngModel]="row.quantityPerUnit"
+                  (ngModelChange)="updateRecipeQuantity($index, $event)"
+                />
+                <button type="button" class="btn btn-ghost btn-icon" (click)="removeRecipeRow($index)" aria-label="Quitar insumo">
+                  <app-icon name="trash" [size]="18" />
+                </button>
+              </div>
+            }
+            <button type="button" class="btn btn-secondary btn-sm add-row" (click)="addRecipeRow()"><app-icon name="plus" [size]="16" /> Agregar insumo</button>
+          </div>
+        }
+      }
+
+      @if (stockConfigError()) {
+        <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ stockConfigError() }}</div></div>
+      }
+    </div>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelStockConfig()">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="savingStockConfig()" (click)="saveStockConfig(configuringStockId()!)">
+      {{ savingStockConfig() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Opciones del producto (V11) -->
+<app-modal
+  [open]="!!configuringOptionsId()"
+  [title]="'Opciones de ' + (optionsProduct()?.name ?? '')"
+  subtitle="Lo que se pregunta al tomar el pedido (tamaño, leche, extras…)"
+  [dismissable]="!savingOptions()"
+  (closed)="configuringOptionsId.set(null)"
+>
+  @if (optionGroups().length === 0) {
+    <div class="alert alert-info">
+      <app-icon name="info" />
+      <div class="alert-body">
+        Todavía no hay grupos de opciones. Crealos en
+        <a routerLink="/opciones" (click)="configuringOptionsId.set(null)">Opciones</a>
+        (por ejemplo "Leche: Entera / Almendra +$300") y después elegí acá cuáles usa este producto.
+      </div>
+    </div>
+  } @else {
+    <div class="stack-sm">
+      @for (group of optionGroups(); track group.id) {
+        <label class="option-group-row" [class.selected]="optionsSelection().has(group.id)">
+          <input type="checkbox" [checked]="optionsSelection().has(group.id)" (change)="toggleOptionGroup(group.id)" />
+          <span class="option-group-text">
+            <strong>{{ group.name }}</strong>
+            <span class="muted small">{{ ruleLabel(group) }} · {{ group.options.length }} {{ group.options.length === 1 ? 'opción' : 'opciones' }}</span>
+          </span>
+        </label>
+      }
+      <a class="small" routerLink="/opciones" (click)="configuringOptionsId.set(null)">Crear o editar grupos de opciones</a>
+    </div>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="configuringOptionsId.set(null)">Cancelar</button>
+    @if (optionGroups().length > 0) {
+      <button type="button" class="btn btn-primary" [disabled]="savingOptions()" (click)="saveOptions()">
+        {{ savingOptions() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    }
+  </div>
+</app-modal>
