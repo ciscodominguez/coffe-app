@@ -1,0 +1,293 @@
+:host {
+  display: block;
+}
+
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.auth-brand {
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, #fff 12%, transparent), transparent 45%),
+    linear-gradient(145deg, #7a3a15, #3a1d0c);
+  color: #fbeee2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.brand-inner {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.brand-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #fbeee2;
+  color: #7a3a15;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-mark.small {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.auth-brand h2 {
+  font-size: 2.1rem;
+  font-weight: 800;
+}
+
+.auth-brand h2 span {
+  color: #f0a56f;
+}
+
+.auth-brand p {
+  font-size: 1.1rem;
+  opacity: 0.85;
+}
+
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.features li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  opacity: 0.92;
+}
+
+.auth-form-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.theme-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.auth-card > .muted {
+  margin-bottom: 0.75rem;
+}
+
+.mobile-brand {
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.mobile-brand strong span {
+  color: var(--primary);
+}
+
+.password {
+  position: relative;
+}
+
+.password input {
+  padding-right: 3rem !important;
+}
+
+.eye {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.register-cta {
+  text-align: center;
+  font-size: 0.93rem;
+  color: var(--text-muted);
+}
+
+.support-cta {
+  text-align: center;
+  margin: -0.4rem 0 0;
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: none;
+  padding: 0.3rem;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.register-cta a {
+  font-weight: 650;
+}
+
+@media (max-width: 860px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-brand {
+    display: none;
+  }
+
+  .mobile-brand {
+    display: flex;
+  }
+}
+
+/* ---------- Registro (comparte estilos con el login) ---------- */
+
+.fiscal-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fiscal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'radio title'
+    'radio text';
+  column-gap: 0.65rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border-strong);
+  cursor: pointer;
+}
+
+.fiscal.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.fiscal input {
+  grid-area: radio;
+  accent-color: var(--primary);
+  width: 18px;
+  height: 18px;
+}
+
+.fiscal strong {
+  grid-area: title;
+}
+
+.fiscal span {
+  grid-area: text;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.label-row label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.forgot {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sent-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 1rem 0;
+}
+
+.sent-box .icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* Pantallas de una sola columna (recuperar / restablecer contraseña). */
+.auth-page.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* V17 — links a los papeles y casilla de términos (registro). */
+.legal-foot {
+  margin-top: 1.25rem;
+}
+
+.terms-check {
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.terms-check input {
+  margin-top: 0.2rem;
+}
+
+.terms-check.invalid {
+  color: var(--danger);
+}
+
+.terms-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  margin-top: -0.4rem;
+}

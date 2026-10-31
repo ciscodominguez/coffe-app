@@ -1,0 +1,78 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Locales</h1>
+    <p class="page-subtitle">Dirección y teléfono salen en el ticket del cliente. Acá también elegís el ancho de la ticketera.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else {
+  <div class="grid-auto">
+    @for (location of locations(); track location.id) {
+      <article class="card location">
+        <div class="card-body stack-sm">
+          <div class="row-between">
+            <h2 class="loc-name"><app-icon name="store" [size]="20" /> {{ location.name }}</h2>
+            @if (canEdit()) {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(location)">
+                <app-icon name="edit" [size]="16" /> Editar
+              </button>
+            }
+          </div>
+          <p class="detail" [class.missing]="!location.address">{{ location.address || 'Sin dirección cargada' }}</p>
+          <p class="detail" [class.missing]="!location.phone">{{ location.phone || 'Sin teléfono cargado' }}</p>
+          <p class="detail"><app-icon name="printer" [size]="15" /> Ticketera de {{ location.receiptPaperWidthMm }} mm</p>
+        </div>
+      </article>
+    }
+  </div>
+  <p class="muted small more-info">
+    <app-icon name="info" [size]="15" /> Agregar más locales (multi-sucursal) llega en una próxima etapa.
+  </p>
+}
+
+<app-modal
+  [open]="!!editingId()"
+  [title]="'Editar ' + (editingLocation()?.name ?? 'local')"
+  [dismissable]="!saving()"
+  (closed)="cancelEdit()"
+>
+  <form [formGroup]="form" (ngSubmit)="save(editingId()!)" class="stack" id="location-form">
+    <div class="field">
+      <label for="loc-name">Nombre</label>
+      <input id="loc-name" type="text" formControlName="name" />
+    </div>
+    <div class="field">
+      <label for="loc-address">Dirección</label>
+      <input id="loc-address" type="text" formControlName="address" placeholder="Ej.: Güemes 2850, Mar del Plata" />
+    </div>
+    <div class="field">
+      <label for="loc-phone">Teléfono</label>
+      <input id="loc-phone" type="tel" formControlName="phone" />
+    </div>
+    <div class="field">
+      <span class="label">Ancho de la ticketera</span>
+      <div class="segmented block">
+        @for (width of paperWidths; track width) {
+          <button
+            type="button"
+            [class.active]="form.controls.receiptPaperWidthMm.value === width"
+            (click)="form.controls.receiptPaperWidthMm.setValue(width); form.markAsDirty()"
+          >
+            {{ width }} mm
+          </button>
+        }
+      </div>
+      <span class="help">Fijate en la caja de la impresora o en el ancho del rollo. 80 mm es el más común.</span>
+    </div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelEdit()">Cancelar</button>
+    <button type="submit" form="location-form" class="btn btn-primary" [disabled]="form.invalid || saving()">
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>

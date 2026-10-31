@@ -1,0 +1,152 @@
+<main class="auth-page">
+  <section class="auth-brand" aria-hidden="true">
+    <div class="brand-inner">
+      <span class="brand-mark"><app-icon name="coffee" [size]="34" /></span>
+      <h2>COFFE<span>_APP</span></h2>
+      <p>En dos minutos tenés tu café andando.</p>
+      <ul class="features">
+        <li><app-icon name="store" [size]="18" /> 1. Los datos de tu café</li>
+        <li><app-icon name="users" [size]="18" /> 2. Tu cuenta de administrador/a</li>
+        <li><app-icon name="sparkles" [size]="18" /> 3. Te guiamos para cargar la carta</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="auth-form-wrap">
+    <button
+      type="button"
+      class="btn btn-ghost btn-icon theme-btn"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.resolved() === 'dark' ? 'Pasar a modo claro' : 'Pasar a modo oscuro'"
+    >
+      <app-icon [name]="theme.resolved() === 'dark' ? 'sun' : 'moon'" />
+    </button>
+
+    <div class="auth-card">
+      <div class="mobile-brand">
+        <span class="brand-mark small"><app-icon name="coffee" [size]="22" /></span>
+        <strong>COFFE<span>_APP</span></strong>
+      </div>
+
+      <ol class="stepper">
+        <li [class.current]="step() === 1" [class.done]="step() === 2">
+          <span class="step-num">@if (step() === 2) {<app-icon name="check" [size]="15" [strokeWidth]="3" />} @else {1}</span>
+          Tu café
+        </li>
+        <li [class.current]="step() === 2"><span class="step-num">2</span> Tu cuenta</li>
+      </ol>
+
+      @if (step() === 1) {
+        <h1>Contanos de tu café</h1>
+        <form [formGroup]="businessForm" (ngSubmit)="next()" class="stack" novalidate>
+          <div class="field">
+            <label for="tradeName">Nombre del café</label>
+            <input id="tradeName" type="text" formControlName="tradeName" placeholder="Ej.: Café del Puerto" (blur)="syncLegalName()" />
+            @if (businessForm.controls.tradeName.touched && businessForm.controls.tradeName.invalid) {
+              <span class="field-error">¿Cómo se llama tu café?</span>
+            }
+          </div>
+          <div class="field">
+            <label for="legalName">Razón social</label>
+            <input id="legalName" type="text" formControlName="legalName" />
+            <span class="help">Como figura en AFIP/ARCA. Si sos monotributista, suele ser tu nombre.</span>
+          </div>
+          <div class="field">
+            <label for="taxId">CUIT</label>
+            <input id="taxId" type="text" inputmode="numeric" formControlName="taxId" placeholder="20-12345678-9" />
+            @if (businessForm.controls.taxId.touched && businessForm.controls.taxId.invalid) {
+              <span class="field-error">Son 11 números (con o sin guiones).</span>
+            }
+          </div>
+          <div class="field">
+            <span class="label">Condición fiscal</span>
+            <div class="fiscal-grid">
+              @for (option of fiscalOptions; track option.value) {
+                <label class="fiscal" [class.selected]="businessForm.controls.fiscalCondition.value === option.value">
+                  <input type="radio" formControlName="fiscalCondition" [value]="option.value" />
+                  <strong>{{ option.label }}</strong>
+                  <span class="muted small">{{ option.text }}</span>
+                </label>
+              }
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg btn-block">
+            Siguiente <app-icon name="arrow-right" />
+          </button>
+        </form>
+      } @else {
+        <h1>Tu cuenta</h1>
+        <p class="muted">Con estos datos vas a entrar. Después sumás al resto del equipo.</p>
+        <form [formGroup]="accountForm" (ngSubmit)="submit()" class="stack" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="first">Nombre</label>
+              <input id="first" type="text" formControlName="ownerFirstName" autocomplete="given-name" />
+            </div>
+            <div class="field">
+              <label for="last">Apellido</label>
+              <input id="last" type="text" formControlName="ownerLastName" autocomplete="family-name" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="remail">Email</label>
+            <input id="remail" type="email" formControlName="ownerEmail" autocomplete="email" />
+            @if (accountForm.controls.ownerEmail.touched && accountForm.controls.ownerEmail.invalid) {
+              <span class="field-error">Escribí un email válido.</span>
+            }
+          </div>
+          <div class="field">
+            <label for="rpass">Contraseña</label>
+            <div class="password">
+              <input id="rpass" [type]="showPassword() ? 'text' : 'password'" formControlName="ownerPassword" autocomplete="new-password" />
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon btn-sm eye"
+                (click)="showPassword.set(!showPassword())"
+                [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              >
+                <app-icon [name]="showPassword() ? 'x' : 'eye'" [size]="18" />
+              </button>
+            </div>
+            <span class="help" [class.field-error]="accountForm.controls.ownerPassword.touched && accountForm.controls.ownerPassword.invalid">
+              Mínimo 8 caracteres.
+            </span>
+          </div>
+
+          <label class="check-row terms-check" [class.invalid]="accountForm.controls.acceptTerms.touched && accountForm.controls.acceptTerms.invalid">
+            <input type="checkbox" formControlName="acceptTerms" />
+            <span>
+              Leí y acepto los <a routerLink="/terminos" target="_blank">Términos y condiciones</a> y la
+              <a routerLink="/privacidad" target="_blank">Política de privacidad</a>.
+            </span>
+          </label>
+          @if (accountForm.controls.acceptTerms.touched && accountForm.controls.acceptTerms.invalid) {
+            <span class="terms-error">Para crear tu café tenés que aceptarlos.</span>
+          }
+
+          @if (errorMessage()) {
+            <div class="alert alert-danger" role="alert">
+              <app-icon name="alert" [size]="18" />
+              <div class="alert-body">{{ errorMessage() }}</div>
+            </div>
+          }
+
+          <div class="row">
+            <button type="button" class="btn btn-ghost" (click)="step.set(1)"><app-icon name="arrow-left" [size]="18" /> Atrás</button>
+            <button type="submit" class="btn btn-primary btn-lg spacer" [disabled]="submitting()">
+              @if (submitting()) {
+                <span class="spinner"></span> Creando…
+              } @else {
+                Crear mi café
+              }
+            </button>
+          </div>
+        </form>
+      }
+
+      <div class="divider"></div>
+      <p class="register-cta">¿Ya tenés cuenta? <a routerLink="/login">Ingresá</a></p>
+      <div class="legal-foot"><app-legal-links /></div>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,217 @@
+<div class="shell" [class.immersive]="layout.immersive()">
+  <!-- Menú lateral (compu y tablet) -->
+  <aside class="sidebar" aria-label="Menú principal">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark"><app-icon name="coffee" [size]="22" /></span>
+      <span class="brand-name">COFFE<span>_APP</span></span>
+    </a>
+
+    <nav class="side-nav">
+      @for (section of sections(); track section.title) {
+        <div class="nav-section" [attr.data-tour]="section.tour ?? null">
+          <span class="nav-section-title">{{ section.title }}</span>
+          @for (item of section.items; track item.path) {
+            <a
+              class="nav-item"
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: !!item.exact }"
+              [attr.data-tour]="item.tour ?? null"
+              [attr.title]="item.label"
+            >
+              <app-icon [name]="item.icon" [size]="20" />
+              <span class="nav-label">{{ item.label }}</span>
+              @if (item.path === '/pedidos' && pendingOrders() > 0) {
+                <span class="nav-badge" title="Pedidos esperando conexión">{{ pendingOrders() }}</span>
+              }
+            </a>
+          }
+        </div>
+      }
+    </nav>
+
+    <div class="side-footer">
+      <button type="button" class="support-btn" (click)="openSupport()" title="¿Algo no anda? Recargar o escribir a soporte">
+        <app-icon name="lifebuoy" />
+        <span class="tool-label">Soporte</span>
+      </button>
+      <div class="side-tools">
+        <button
+          type="button"
+          class="tool-btn"
+          (click)="theme.toggle()"
+          data-tour="theme-toggle"
+          [attr.aria-label]="theme.resolved() === 'dark' ? 'Pasar a modo claro' : 'Pasar a modo oscuro'"
+          [attr.title]="theme.resolved() === 'dark' ? 'Modo claro' : 'Modo oscuro'"
+        >
+          <app-icon [name]="theme.resolved() === 'dark' ? 'sun' : 'moon'" />
+          <span class="tool-label">{{ theme.resolved() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
+        <button type="button" class="tool-btn" (click)="startTour()" data-tour="help-button" title="Ver el recorrido de ayuda">
+          <app-icon name="help" />
+          <span class="tool-label">Ayuda</span>
+        </button>
+      </div>
+
+      @if (user(); as u) {
+        <div class="user-card">
+          <a class="user-link" routerLink="/cuenta" routerLinkActive="active" title="Mi cuenta">
+            <span class="avatar">{{ initials() }}</span>
+            <div class="user-info">
+              <span class="user-name">{{ u.firstName }} {{ u.lastName }}</span>
+              <span class="user-role">{{ roleLabel(u.role) }} · Mi cuenta</span>
+            </div>
+          </a>
+          <button type="button" class="tool-btn icon-only" (click)="logout()" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <app-icon name="logout" />
+          </button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <!-- Barra superior (celular) -->
+  <header class="topbar">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark"><app-icon name="coffee" [size]="20" /></span>
+      <span class="brand-name">COFFE<span>_APP</span></span>
+    </a>
+    <div class="topbar-tools">
+      <button type="button" class="btn btn-ghost btn-sm support-top" (click)="openSupport()" aria-label="Soporte: ¿algo no anda?">
+        <app-icon name="lifebuoy" [size]="18" /> Soporte
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon"
+        (click)="theme.toggle()"
+        data-tour="theme-toggle"
+        [attr.aria-label]="theme.resolved() === 'dark' ? 'Pasar a modo claro' : 'Pasar a modo oscuro'"
+      >
+        <app-icon [name]="theme.resolved() === 'dark' ? 'sun' : 'moon'" />
+      </button>
+      <button type="button" class="btn btn-ghost btn-icon" (click)="startTour()" data-tour="help-button" aria-label="Ayuda">
+        <app-icon name="help" />
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+    @if (billingNotice(); as n) {
+      <a class="billing-notice tone-{{ n.tone }}" routerLink="/suscripcion">
+        <app-icon [name]="n.tone === 'info' ? 'clock' : 'alert'" [size]="18" />
+        <span>{{ n.text }}</span>
+        <strong class="nowrap">Ver suscripción →</strong>
+      </a>
+    }
+    <router-outlet />
+  </main>
+
+  <!-- Barra inferior (celular) -->
+  <nav class="bottom-nav" aria-label="Accesos rápidos">
+    @for (item of mobilePrimary(); track item.path) {
+      <a
+        class="bottom-item"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: !!item.exact }"
+        [attr.data-tour]="item.tour ?? null"
+      >
+        <span class="bottom-icon">
+          <app-icon [name]="item.icon" [size]="22" />
+          @if (item.path === '/pedidos' && pendingOrders() > 0) {
+            <span class="nav-badge small">{{ pendingOrders() }}</span>
+          }
+        </span>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+    <button
+      type="button"
+      class="bottom-item"
+      [class.active]="moreOpen()"
+      (click)="moreOpen.set(!moreOpen())"
+      [attr.data-tour]="isManagement() ? 'nav-catalogo' : null"
+    >
+      <span class="bottom-icon"><app-icon name="grid" [size]="22" /></span>
+      <span>Más</span>
+    </button>
+  </nav>
+
+  @if (moreOpen()) {
+    <div class="more-backdrop" (click)="moreOpen.set(false)"></div>
+    <div class="more-sheet" role="dialog" aria-label="Más opciones">
+      @if (user(); as u) {
+        <a class="user-card user-link" routerLink="/cuenta">
+          <span class="avatar">{{ initials() }}</span>
+          <div class="user-info">
+            <span class="user-name">{{ u.firstName }} {{ u.lastName }}</span>
+            <span class="user-role">{{ roleLabel(u.role) }} · Mi cuenta</span>
+          </div>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+      }
+      @for (section of mobileMore(); track section.title) {
+        <span class="nav-section-title">{{ section.title }}</span>
+        <div class="more-grid">
+          @for (item of section.items; track item.path) {
+            <a class="more-item" [routerLink]="item.path" routerLinkActive="active">
+              <app-icon [name]="item.icon" [size]="22" />
+              <span>{{ item.label }}</span>
+            </a>
+          }
+        </div>
+      }
+      <div class="more-actions">
+        <button type="button" class="btn btn-secondary" (click)="openSupport()">
+          <app-icon name="lifebuoy" /> Soporte
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="startTour()">
+          <app-icon name="help" /> Ver ayuda
+        </button>
+        <button type="button" class="btn btn-danger-ghost" (click)="logout()">
+          <app-icon name="logout" /> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (layout.immersive()) {
+    <button type="button" class="support-fab" (click)="openSupport()" aria-label="Soporte: ¿algo no anda?">
+      <app-icon name="lifebuoy" [size]="20" /> <span>Soporte</span>
+    </button>
+  }
+</div>
+
+<app-tour />
+
+<!-- V18 — botón de soporte -->
+<app-support-sheet [open]="supportOpen()" (closed)="supportOpen.set(false)" />
+
+<!-- V17 — términos nuevos: el dueño los acepta para seguir. -->
+<app-modal
+  [open]="termsToAccept() !== null"
+  [dismissable]="false"
+  title="Términos y privacidad"
+  size="narrow"
+  [closable]="false"
+>
+  @if (termsToAccept(); as t) {
+    <div class="stack">
+      <p>
+        {{ t.acceptedVersion ? 'Actualizamos' : 'Publicamos' }} los <strong>Términos y condiciones</strong> y la
+        <strong>Política de privacidad</strong> de COFFE_APP. Para seguir usándolo, leelos y aceptalos.
+      </p>
+      <div class="terms-links">
+        <a routerLink="/terminos" target="_blank" class="btn btn-secondary btn-sm"><app-icon name="note" [size]="16" /> Términos y condiciones</a>
+        <a routerLink="/privacidad" target="_blank" class="btn btn-secondary btn-sm"><app-icon name="lock" [size]="16" /> Política de privacidad</a>
+      </div>
+      <p class="muted small">Se abren en otra pestaña. Queda registrado quién los aceptó y cuándo.</p>
+      @if (termsError()) {
+        <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ termsError() }}</div></div>
+      }
+    </div>
+  }
+  <div modal-footer class="terms-footer">
+    <button type="button" class="btn btn-primary btn-block" (click)="acceptTerms()" [disabled]="acceptingTerms()">Leí y acepto</button>
+  </div>
+</app-modal>

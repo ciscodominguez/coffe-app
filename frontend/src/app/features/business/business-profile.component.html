@@ -1,0 +1,78 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Negocio</h1>
+    <p class="page-subtitle">Los datos de tu café. El nombre de fantasía es el que sale arriba de los tickets.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else {
+  <div class="layout">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="card">
+      <div class="card-body stack">
+        <div class="field">
+          <label for="tradeName">Nombre de fantasía</label>
+          <input id="tradeName" type="text" formControlName="tradeName" placeholder="Ej.: Café del Puerto" />
+          <span class="help">Como te conocen los clientes.</span>
+        </div>
+
+        <div class="field">
+          <label for="legalName">Razón social</label>
+          <input id="legalName" type="text" formControlName="legalName" />
+          <span class="help">Como figura en AFIP/ARCA.</span>
+        </div>
+
+        <div class="field">
+          <label for="fiscalCondition">Condición fiscal</label>
+          <select id="fiscalCondition" formControlName="fiscalCondition">
+            @for (condition of fiscalConditions; track condition) {
+              <option [value]="condition">{{ fiscalLabels[condition] }}</option>
+            }
+          </select>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ errorMessage() }}</div></div>
+        }
+
+        @if (!canEdit()) {
+          <div class="hint-box">
+            <app-icon name="lock" [size]="18" />
+            <span>Solo la persona dueña del negocio puede cambiar estos datos.</span>
+          </div>
+        }
+      </div>
+      @if (canEdit()) {
+        <div class="card-footer">
+          <button type="submit" class="btn btn-primary" [disabled]="form.invalid || form.pristine || saving()">
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      }
+    </form>
+
+    @if (business(); as biz) {
+      <aside class="card facts">
+        <div class="card-body stack-sm">
+          <div class="fact">
+            <span class="muted small">CUIT</span>
+            <strong>{{ biz.taxId }}</strong>
+          </div>
+          <div class="fact">
+            <span class="muted small">Plan</span>
+            <strong>{{ biz.plan }}</strong>
+          </div>
+          <div class="fact">
+            <span class="muted small">Estado</span>
+            <span class="badge badge-success">{{ biz.status }}</span>
+          </div>
+          <div class="fact">
+            <span class="muted small">En COFFE_APP desde</span>
+            <strong>{{ biz.createdAt | date: 'd/MM/yyyy' }}</strong>
+          </div>
+        </div>
+      </aside>
+    }
+  </div>
+}

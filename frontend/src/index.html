@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <title>COFFE_APP</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#9a4a1c">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Aplica el tema guardado ANTES de que arranque Angular, así no hay un
+    // "parpadeo" claro → oscuro al cargar. Misma clave que ThemeService.
+    (function () {
+      var pref = 'system';
+      try { pref = localStorage.getItem('cofe_app_theme') || 'system'; } catch (e) {}
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+  <script>
+    // V18 — aviso de emergencia: si la app no llegó a arrancar (pantalla en
+    // blanco), después de unos segundos aparece "Recargar" y "Escribir a
+    // soporte por WhatsApp" con lo último que se guardó. No depende de Angular
+    // ni del servidor. Mismas claves que SupportService y DiagnosticsService.
+    setTimeout(function () {
+      var root = document.querySelector('app-root');
+      if (!root || root.children.length > 0) return;
+      function read(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
+      var info = read('coffe.supportInfo') || {};
+      var cafe = read('coffe.supportBusiness');
+      var err = read('coffe.lastError');
+      var text = 'Hola, necesito ayuda con COFFE_APP: no carga (pantalla en blanco).' +
+        (cafe && cafe.name ? '\nCafé: ' + cafe.name : '') +
+        '\nPantalla: ' + location.pathname +
+        '\nInternet: ' + (navigator.onLine ? 'conectado' : 'SIN CONEXIÓN') +
+        (err && err.message ? '\nÚltimo error: ' + err.message : '') +
+        '\nNavegador: ' + navigator.userAgent;
+      var box = document.createElement('div');
+      box.setAttribute('role', 'alert');
+      box.style.cssText = 'max-width:420px;margin:15vh auto;padding:24px;font-family:system-ui,sans-serif;text-align:center;border:1px solid #ccc;border-radius:14px;background:#fff;color:#222';
+      box.innerHTML = '<h2 style="margin:0 0 8px">La app no terminó de cargar</h2>' +
+        '<p style="margin:0 0 18px;color:#555">Probá recargar. Si sigue igual, escribinos.</p>';
+      var reload = document.createElement('button');
+      reload.textContent = 'Recargar';
+      reload.style.cssText = 'display:block;width:100%;min-height:48px;margin-bottom:10px;border:0;border-radius:10px;background:#9a4a1c;color:#fff;font-size:16px;font-weight:700';
+      reload.onclick = function () { location.reload(); };
+      box.appendChild(reload);
+      if (info.whatsapp) {
+        var wa = document.createElement('a');
+        wa.textContent = 'Escribir a soporte por WhatsApp';
+        wa.href = 'https://wa.me/' + String(info.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(text);
+        wa.target = '_blank';
+        wa.rel = 'noopener';
+        wa.style.cssText = 'display:block;min-height:48px;line-height:48px;border-radius:10px;background:#1f9d55;color:#fff;font-size:16px;font-weight:700;text-decoration:none';
+        box.appendChild(wa);
+      } else if (info.contact) {
+        var p = document.createElement('p');
+        p.textContent = 'Soporte: ' + info.contact;
+        box.appendChild(p);
+      }
+      document.body.appendChild(box);
+    }, 15000);
+  </script>
+</body>
+</html>
