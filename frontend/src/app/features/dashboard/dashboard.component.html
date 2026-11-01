@@ -1,0 +1,201 @@
+<div class="hello">
+  <div>
+    <h1>{{ greeting() }}</h1>
+    <p class="muted hello-sub">
+      @if (business(); as biz) {
+        {{ biz.tradeName || biz.legalName }} ·
+      }
+      <span class="date">{{ today | date: "EEEE d 'de' MMMM" }}</span>
+    </p>
+  </div>
+</div>
+
+<!-- Accesos rápidos -->
+<section class="quick-grid" aria-label="Accesos rápidos">
+  @for (action of quickActions(); track action.title) {
+    <a
+      class="quick card card-clickable"
+      [class.primary]="action.primary"
+      [routerLink]="action.link"
+      [queryParams]="action.query ?? null"
+    >
+      <span class="quick-icon"><app-icon [name]="action.icon" [size]="26" /></span>
+      <span class="quick-text">
+        <strong>{{ action.title }}</strong>
+        <span>{{ action.text }}</span>
+      </span>
+      <app-icon name="chevron-right" class="quick-arrow" />
+    </a>
+  }
+</section>
+
+@if (isManagement()) {
+  @if (loading()) {
+    <div class="loading"><span class="spinner"></span> Cargando tu resumen…</div>
+  } @else if (errorMessage()) {
+    <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+  } @else {
+    <!-- Primeros pasos -->
+    @if (showSetup()) {
+      <section class="card setup">
+        <div class="card-header">
+          <div class="setup-title">
+            <span class="card-title"><app-icon name="sparkles" [size]="18" /> Primeros pasos</span>
+            <span class="muted small">{{ setupDone() }} de {{ setupSteps().length }} listos — completalos para que el equipo pueda trabajar.</span>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="dismissSetup()">Ocultar</button>
+        </div>
+        <div class="card-body">
+          <div class="bar-track setup-bar">
+            <div class="bar-fill" [style.width.%]="(setupDone() / setupSteps().length) * 100"></div>
+          </div>
+          <ol class="setup-list">
+            @for (step of setupSteps(); track step.link) {
+              <li [class.done]="step.done">
+                <span class="setup-check">
+                  @if (step.done) {
+                    <app-icon name="check" [size]="16" [strokeWidth]="3" />
+                  } @else {
+                    <app-icon [name]="step.icon" [size]="16" />
+                  }
+                </span>
+                <span class="setup-text">
+                  <strong>{{ step.title }}</strong>
+                  <span class="muted small">{{ step.text }}</span>
+                </span>
+                @if (!step.done) {
+                  <a class="btn btn-secondary btn-sm" [routerLink]="step.link">Hacerlo</a>
+                }
+              </li>
+            }
+          </ol>
+        </div>
+      </section>
+    }
+
+    <!-- Indicadores -->
+    <section class="kpi">
+      <div class="kpi-head">
+        <h2>¿Cómo viene el negocio?</h2>
+        <div class="kpi-filters">
+          @if (locations().length > 1) {
+            <select
+              aria-label="Local"
+              [ngModel]="selectedLocationId()"
+              (ngModelChange)="onLocationChange($event)"
+            >
+              @for (location of locations(); track location.id) {
+                <option [value]="location.id">{{ location.name }}</option>
+              }
+            </select>
+          }
+          <div class="segmented">
+            @for (p of periods; track p) {
+              <button type="button" [class.active]="period() === p" (click)="onPeriodChange(p)">{{ periodLabels[p] }}</button>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (summaryError()) {
+        <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ summaryError() }}</div></div>
+      }
+
+      @if (summary(); as s) {
+        <div class="stats" [class.dim]="loadingSummary()">
+          <div class="card stat">
+            <span class="stat-label">Vendido</span>
+            <span class="stat-value money">$ {{ s.totalSales | number: '1.0-0' }}</span>
+          </div>
+          <div class="card stat">
+            <span class="stat-label">Pedidos entregados</span>
+            <span class="stat-value">{{ s.orderCount }}</span>
+          </div>
+          <div class="card stat">
+            <span class="stat-label">Ticket promedio</span>
+            <span class="stat-value money">$ {{ s.averageTicket | number: '1.0-0' }}</span>
+          </div>
+          <a class="card stat card-clickable" routerLink="/insumos" [class.alert-stat]="lowStockCount() > 0">
+            <span class="stat-label">Stock bajo</span>
+            <span class="stat-value">{{ lowStockCount() }}</span>
+            <span class="small muted">{{ lowStockCount() > 0 ? 'Ver qué reponer →' : 'Todo en orden' }}</span>
+          </a>
+        </div>
+
+        <div class="grid-2" [class.dim]="loadingSummary()">
+          <section class="card">
+            <div class="card-header"><span class="card-title">Lo más vendido</span></div>
+            <div class="card-body">
+              @if (s.topProducts.length === 0) {
+                <p class="empty-inline">Todavía no hay ventas entregadas en este período.</p>
+              } @else {
+                <ol class="rank">
+                  @for (product of s.topProducts; track product.productId; let i = $index) {
+                    <li>
+                      <span class="rank-pos">{{ i + 1 }}</span>
+                      <div class="rank-body">
+                        <div class="row-between">
+                          <span class="rank-name">{{ product.productName }}</span>
+                          <span class="muted small">{{ product.quantity }} u. · $ {{ product.revenue | number: '1.0-0' }}</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill" [style.width.%]="(product.quantity / maxTopQuantity()) * 100"></div></div>
+                      </div>
+                    </li>
+                  }
+                </ol>
+              }
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><span class="card-title">Cómo te pagan</span></div>
+            <div class="card-body">
+              @if (salesByMethodEntries().length === 0) {
+                <p class="empty-inline">Todavía no hay cobros en este período.</p>
+              } @else {
+                <ul class="methods">
+                  @for (entry of salesByMethodEntries(); track entry[0]) {
+                    <li>
+                      <div class="row-between">
+                        <span>{{ paymentMethodLabels[entry[0]] }}</span>
+                        <span><strong class="money">$ {{ entry[1] | number: '1.0-0' }}</strong> <span class="muted small pct">{{ share(entry[1]) }}%</span></span>
+                      </div>
+                      <div class="bar-track"><div class="bar-fill" [style.width.%]="share(entry[1])"></div></div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </section>
+        </div>
+
+        @if (lowStockCount() > 0) {
+          <section class="card low-stock">
+            <div class="card-header">
+              <span class="card-title"><app-icon name="alert" [size]="18" /> Para reponer</span>
+              <a class="btn btn-secondary btn-sm" routerLink="/insumos">Ir a Stock</a>
+            </div>
+            <div class="card-body">
+              <ul class="low-list">
+                @for (ingredient of s.lowIngredients; track ingredient.ingredientId) {
+                  <li>
+                    <span>{{ ingredient.ingredientName }}</span>
+                    <span class="badge badge-danger">{{ ingredient.currentStock }} {{ ingredient.unit }}</span>
+                  </li>
+                }
+                @for (product of s.lowProducts; track product.productId) {
+                  <li>
+                    <span>{{ product.productName }}</span>
+                    <span class="badge badge-danger">{{ product.currentStock }} u.</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          </section>
+        }
+      } @else if (loadingSummary()) {
+        <div class="loading"><span class="spinner"></span> Calculando…</div>
+      }
+    </section>
+  }
+}
