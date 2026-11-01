@@ -1,0 +1,19 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 280px);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0;
+}
