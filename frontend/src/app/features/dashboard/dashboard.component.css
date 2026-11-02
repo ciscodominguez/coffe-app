@@ -1,0 +1,284 @@
+.hello {
+  margin-bottom: 1.25rem;
+}
+
+.hello-sub {
+  margin-top: 0.3rem;
+}
+
+.date {
+  display: inline-block;
+}
+
+.date::first-letter {
+  text-transform: uppercase;
+}
+
+.pct {
+  margin-left: 0.4rem;
+}
+
+/* ---------- Accesos rápidos ---------- */
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+
+.quick {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  min-height: 84px;
+}
+
+.quick-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.quick.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.quick.primary .quick-icon {
+  background: color-mix(in srgb, var(--on-primary) 18%, transparent);
+  color: var(--on-primary);
+}
+
+.quick.primary .quick-text span {
+  color: color-mix(in srgb, var(--on-primary) 80%, transparent);
+}
+
+.quick.primary:hover {
+  background: var(--primary-hover);
+}
+
+.quick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-text strong {
+  font-size: 1.05rem;
+}
+
+.quick-text span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quick-arrow {
+  opacity: 0.5;
+}
+
+/* ---------- Primeros pasos ---------- */
+
+.setup {
+  margin-bottom: 1.75rem;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.setup-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.setup-title .card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--primary);
+}
+
+.setup-bar {
+  margin-bottom: 0.75rem;
+}
+
+.setup-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.setup-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-list li:last-child {
+  border-bottom: none;
+}
+
+.setup-check {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.setup-list li.done .setup-check {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.setup-list li.done .setup-text strong {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.setup-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Indicadores ---------- */
+
+.kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.kpi-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kpi-filters select {
+  width: auto;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.alert-stat {
+  border-color: var(--danger);
+}
+
+.alert-stat .stat-value {
+  color: var(--danger);
+}
+
+.dim {
+  opacity: 0.55;
+  transition: opacity var(--transition);
+}
+
+.grid-2 {
+  margin-bottom: 1rem;
+}
+
+.rank,
+.methods,
+.low-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rank li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.rank-pos {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-weight: 750;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rank li:first-child .rank-pos {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.rank-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.rank-name {
+  font-weight: 600;
+}
+
+.methods li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.low-stock .card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--danger);
+}
+
+.low-list {
+  gap: 0.4rem;
+}
+
+.low-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.low-list li:last-child {
+  border-bottom: none;
+}
