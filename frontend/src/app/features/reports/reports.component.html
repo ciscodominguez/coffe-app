@@ -1,0 +1,85 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Reportes</h1>
+    <p class="page-subtitle">Un Excel con las ventas y los cierres de caja del período, listo para mandarle al contador.</p>
+  </div>
+</div>
+
+<div class="layout">
+  <section class="card">
+    <div class="card-body stack">
+      <div class="field">
+        <span class="label">Período</span>
+        <div class="chips">
+          @for (p of presets; track p.key) {
+            <button type="button" class="chip" [class.selected]="preset() === p.key" (click)="choosePreset(p.key)">{{ p.label }}</button>
+          }
+        </div>
+      </div>
+
+      @if (preset() === 'custom') {
+        <div class="dates">
+          <div class="field">
+            <label for="report-from">Desde</label>
+            <input id="report-from" type="date" [ngModel]="fromDay()" (ngModelChange)="fromDay.set($event)" />
+          </div>
+          <div class="field">
+            <label for="report-to">Hasta</label>
+            <input id="report-to" type="date" [ngModel]="toDay()" (ngModelChange)="toDay.set($event)" />
+          </div>
+        </div>
+      }
+
+      <p class="range-text">
+        <app-icon name="clock" [size]="16" />
+        Del <strong>{{ range().from | date: 'dd/MM/yyyy' }}</strong> al <strong>{{ range().to | date: 'dd/MM/yyyy' }}</strong>
+        (días completos)
+      </p>
+      @if (!rangeValid()) {
+        <p class="field-error">La fecha "desde" tiene que ser anterior o igual a "hasta".</p>
+      }
+
+      @if (locations().length > 1) {
+        <div class="field">
+          <label for="report-location">Local</label>
+          <select id="report-location" [ngModel]="locationId()" (ngModelChange)="locationId.set($event)">
+            <option value="">Todos los locales</option>
+            @for (location of locations(); track location.id) {
+              <option [value]="location.id">{{ location.name }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      @if (errorMessage(); as err) {
+        <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ err }}</div></div>
+      }
+
+      <button type="button" class="btn btn-primary btn-lg btn-block" [disabled]="downloading() || !rangeValid()" (click)="download()">
+        @if (downloading()) {
+          <span class="spinner"></span> Armando el Excel…
+        } @else {
+          <app-icon name="arrow-right" class="down" /> Descargar Excel
+        }
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header"><span class="card-title">Qué trae el Excel</span></div>
+    <ul class="sheets">
+      @for (sheet of sheets; track sheet.title) {
+        <li>
+          <span class="sheet-icon"><app-icon [name]="sheet.icon" [size]="18" /></span>
+          <span class="sheet-text">
+            <strong>{{ sheet.title }}</strong>
+            <span class="muted small">{{ sheet.text }}</span>
+          </span>
+        </li>
+      }
+    </ul>
+    <p class="muted small note">
+      Cuenta como venta cada pedido <strong>entregado</strong> en el período (cerrado y cobrado), igual que el panel de Inicio. No es un comprobante fiscal.
+    </p>
+  </section>
+</div>
