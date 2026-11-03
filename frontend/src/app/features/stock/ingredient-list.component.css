@@ -1,0 +1,123 @@
+.tabs {
+  max-width: 460px;
+  margin-bottom: 1.25rem;
+}
+
+.low-count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  margin: 1rem 0 0.65rem;
+  color: var(--text-muted);
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 0.75rem;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+}
+
+.level.low {
+  border-color: var(--danger);
+}
+
+.level.low .bar-fill {
+  background: var(--danger);
+}
+
+.level-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.qty {
+  font-size: 1.3rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.qty small {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.neg {
+  color: var(--danger);
+}
+
+.pos {
+  color: var(--success);
+}
+
+.level-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.level-actions {
+  gap: 0.25rem;
+}
+
+.list {
+  max-width: 760px;
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.item.is-inactive .item-text {
+  opacity: 0.55;
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick {
+  gap: 0.35rem;
+}
+
+.quick .chip {
+  min-height: 34px;
+}

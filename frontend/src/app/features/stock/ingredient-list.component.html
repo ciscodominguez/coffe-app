@@ -1,0 +1,289 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Insumos y stock</h1>
+    <p class="page-subtitle">
+      Cuánto queda de cada cosa en este local. Se descuenta solo al vender; corregilo contando cuando haga falta.
+    </p>
+  </div>
+  @if (canManage()) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="tab.set('catalog'); toggleCreateForm()">
+        <app-icon name="plus" /> Nuevo insumo
+      </button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando stock…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else {
+  <div class="segmented block tabs">
+    <button type="button" [class.active]="tab() === 'levels'" (click)="tab.set('levels')">
+      Stock actual
+      @if (lowCount() > 0) {
+        <span class="low-count">{{ lowCount() }}</span>
+      }
+    </button>
+    <button type="button" [class.active]="tab() === 'catalog'" (click)="tab.set('catalog')">Insumos ({{ ingredients().length }})</button>
+  </div>
+
+  <!-- ============ STOCK ACTUAL ============ -->
+  @if (tab() === 'levels') {
+    @if (ingredientLevels().length === 0 && productLevels().length === 0) {
+      <app-empty-state
+        icon="box"
+        title="Todavía no hay nada con control de stock"
+        text="Cargá los insumos (café en grano, leche…) y después, en cada producto, elegí cómo descuenta stock: por unidad o por receta."
+      >
+        @if (canManage()) {
+          <button type="button" class="btn btn-primary" (click)="tab.set('catalog'); toggleCreateForm()"><app-icon name="plus" /> Cargar un insumo</button>
+        }
+      </app-empty-state>
+    } @else {
+      <div class="row-between toolbar">
+        <label class="check-row">
+          <input type="checkbox" [checked]="onlyLow()" (change)="onlyLow.set(!onlyLow())" />
+          Ver solo lo que hay que reponer
+        </label>
+        <span class="muted small">Se puede vender con stock en negativo: queda en rojo para corregir después.</span>
+      </div>
+
+      @if (visibleIngredientLevels().length > 0) {
+        <h2 class="section-title">Insumos</h2>
+        <div class="levels">
+          @for (level of visibleIngredientLevels(); track level.ingredientId) {
+            <article class="card level" [class.low]="level.belowMinimum">
+              <div class="level-main">
+                <strong>{{ level.ingredientName }}</strong>
+                <span class="qty" [class.neg]="level.currentStock < 0">{{ level.currentStock | number: '1.0-3' }} <small>{{ level.unit }}</small></span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" [style.width.%]="levelPercent(level.currentStock, level.minStock)"></div></div>
+              <div class="level-foot">
+                <span class="muted small">
+                  @if (level.belowMinimum) {
+                    <span class="badge badge-danger">Reponer</span>
+                  } @else if (level.minStock) {
+                    Aviso debajo de {{ level.minStock | number: '1.0-3' }} {{ level.unit }}
+                  } @else {
+                    Sin aviso configurado
+                  }
+                </span>
+                @if (canManage()) {
+                  <span class="row level-actions">
+                    <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="toggleHistoryIngredient(level.ingredientId)" title="Historial" aria-label="Historial">
+                      <app-icon name="clock" [size]="17" />
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="startAdjustIngredient(level)">Ajustar</button>
+                  </span>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+
+      @if (visibleProductLevels().length > 0) {
+        <h2 class="section-title">Productos por unidad</h2>
+        <div class="levels">
+          @for (level of visibleProductLevels(); track level.productId) {
+            <article class="card level" [class.low]="level.belowMinimum">
+              <div class="level-main">
+                <strong>{{ level.productName }}</strong>
+                <span class="qty" [class.neg]="level.currentStock < 0">{{ level.currentStock | number: '1.0-0' }} <small>u.</small></span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" [style.width.%]="levelPercent(level.currentStock, level.minStock)"></div></div>
+              <div class="level-foot">
+                <span class="muted small">
+                  @if (level.belowMinimum) {
+                    <span class="badge badge-danger">Reponer</span>
+                  } @else if (level.minStock) {
+                    Aviso debajo de {{ level.minStock }} u.
+                  } @else {
+                    Sin aviso configurado
+                  }
+                </span>
+                @if (canManage()) {
+                  <span class="row level-actions">
+                    <button type="button" class="btn btn-ghost btn-icon btn-sm" (click)="toggleHistoryProduct(level.productId)" title="Historial" aria-label="Historial">
+                      <app-icon name="clock" [size]="17" />
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="startAdjustProduct(level)">Ajustar</button>
+                  </span>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+
+      @if (onlyLow() && lowCount() === 0) {
+        <p class="empty-inline">¡Nada para reponer! Todo está por encima del mínimo.</p>
+      }
+    }
+  }
+
+  <!-- ============ CATÁLOGO DE INSUMOS ============ -->
+  @if (tab() === 'catalog') {
+    @if (sortedIngredients().length === 0) {
+      <app-empty-state
+        icon="box"
+        title="Todavía no hay insumos"
+        text="Un insumo es algo que se consume al preparar: café en grano, leche, azúcar. Se cargan una vez para todo el negocio."
+      >
+        @if (canManage()) {
+          <button type="button" class="btn btn-primary" (click)="toggleCreateForm()"><app-icon name="plus" /> Cargar el primero</button>
+        }
+      </app-empty-state>
+    } @else {
+      <div class="card list">
+        @for (ingredient of sortedIngredients(); track ingredient.id) {
+          <div class="item" [class.is-inactive]="!ingredient.isActive">
+            <div class="item-text">
+              <strong>{{ ingredient.name }}</strong>
+              <span class="muted small">
+                Se mide en {{ ingredient.unit }} ·
+                {{ ingredient.minStock !== null ? 'aviso debajo de ' + ingredient.minStock : 'sin aviso' }}
+              </span>
+            </div>
+            @if (!ingredient.isActive) {
+              <span class="badge">De baja</span>
+            }
+            @if (canManage()) {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(ingredient)"><app-icon name="edit" [size]="16" /> Editar</button>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+}
+
+<!-- Nuevo insumo -->
+<app-modal [open]="showCreateForm()" title="Nuevo insumo" size="narrow" [dismissable]="!creating()" (closed)="toggleCreateForm()">
+  <form [formGroup]="createForm" (ngSubmit)="createIngredient()" class="stack" id="new-ingredient-form">
+    <div class="field">
+      <label for="new-name">Nombre</label>
+      <input id="new-name" type="text" formControlName="name" placeholder="Ej.: Café en grano" />
+    </div>
+    <div class="field">
+      <label for="new-unit">¿En qué lo medís?</label>
+      <input id="new-unit" type="text" formControlName="unit" placeholder="g, kg, ml, l, unidad…" />
+      <div class="row quick">
+        @for (unit of unitSuggestions; track unit) {
+          <button type="button" class="chip" [class.selected]="createForm.controls.unit.value === unit" (click)="createForm.controls.unit.setValue(unit)">{{ unit }}</button>
+        }
+      </div>
+    </div>
+    <div class="field">
+      <label for="new-min">Avisarme cuando quede menos de… <span class="muted">(opcional)</span></label>
+      <input id="new-min" type="number" inputmode="decimal" step="0.001" min="0" formControlName="minStock" />
+    </div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="toggleCreateForm()">Cancelar</button>
+    <button type="submit" form="new-ingredient-form" class="btn btn-primary" [disabled]="createForm.invalid || creating()">
+      {{ creating() ? 'Creando…' : 'Crear' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Editar insumo -->
+<app-modal [open]="!!editingId()" [title]="'Editar ' + (editingIngredient()?.name ?? '')" size="narrow" [dismissable]="!saving()" (closed)="cancelEdit()">
+  @if (editingIngredient(); as ingredient) {
+    <form [formGroup]="editForm" (ngSubmit)="save(ingredient.id)" class="stack" id="edit-ingredient-form">
+      <div class="field">
+        <label for="edit-name">Nombre</label>
+        <input id="edit-name" type="text" formControlName="name" />
+      </div>
+      <div class="field">
+        <label for="edit-unit">Unidad</label>
+        <input id="edit-unit" type="text" formControlName="unit" />
+      </div>
+      <div class="field">
+        <label for="edit-min">Avisarme cuando quede menos de… <span class="muted">(opcional)</span></label>
+        <input id="edit-min" type="number" inputmode="decimal" step="0.001" min="0" formControlName="minStock" />
+      </div>
+      <button type="button" class="btn" [class.btn-danger-ghost]="ingredient.isActive" [class.btn-secondary]="!ingredient.isActive" [disabled]="saving()" (click)="toggleActive(ingredient)">
+        <app-icon [name]="ingredient.isActive ? 'trash' : 'refresh'" [size]="18" />
+        {{ ingredient.isActive ? 'Dar de baja' : 'Reactivar' }}
+      </button>
+    </form>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelEdit()">Cancelar</button>
+    <button type="submit" form="edit-ingredient-form" class="btn btn-primary" [disabled]="editForm.invalid || saving()">
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Ajustar stock -->
+<app-modal
+  [open]="!!adjustTarget()"
+  [title]="'¿Cuánto ' + (adjustTarget()?.name ?? '') + ' hay?'"
+  subtitle="Contá lo que hay de verdad y cargá ese número. La diferencia queda registrada."
+  size="narrow"
+  [dismissable]="!adjusting()"
+  (closed)="cancelAdjust()"
+>
+  @if (adjustTarget(); as target) {
+    <form class="stack" id="adjust-form" (ngSubmit)="confirmAdjust()">
+      <p class="muted small">Según el sistema hay {{ target.current | number: '1.0-3' }} {{ target.unit }}.</p>
+      <div class="field">
+        <label for="adjust-qty">Cantidad contada ({{ target.unit }})</label>
+        <input id="adjust-qty" type="number" inputmode="decimal" step="0.001" min="0" name="adjustQuantity" [ngModel]="adjustQuantity()" (ngModelChange)="adjustQuantity.set($event)" />
+      </div>
+      <div class="field">
+        <label for="adjust-reason">Motivo <span class="muted">(opcional)</span></label>
+        <input id="adjust-reason" type="text" name="adjustReason" placeholder="Ej.: conteo de apertura, llegó pedido" [ngModel]="adjustReason()" (ngModelChange)="adjustReason.set($event)" />
+      </div>
+      @if (adjustError()) {
+        <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ adjustError() }}</div></div>
+      }
+    </form>
+  }
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="cancelAdjust()">Cancelar</button>
+    <button type="submit" form="adjust-form" class="btn btn-primary" [disabled]="adjusting()">{{ adjusting() ? 'Guardando…' : 'Guardar conteo' }}</button>
+  </div>
+</app-modal>
+
+<!-- Historial -->
+<app-modal [open]="!!historyTitle()" [title]="'Historial de ' + historyTitle()" size="wide" (closed)="closeHistory()">
+  @if (historyLoading()) {
+    <div class="loading"><span class="spinner"></span> Cargando…</div>
+  } @else if (history().length === 0) {
+    <p class="empty-inline">Todavía no hay ajustes manuales registrados.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th class="num">Antes</th>
+            <th class="num">Después</th>
+            <th class="num">Diferencia</th>
+            <th>Motivo</th>
+            <th>Quién</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of history(); track entry.id) {
+            <tr>
+              <td class="nowrap">{{ entry.createdAt | date: 'd/MM HH:mm' }}</td>
+              <td class="num">{{ entry.previousQuantity | number: '1.0-3' }}</td>
+              <td class="num">{{ entry.newQuantity | number: '1.0-3' }}</td>
+              <td class="num" [class.neg]="entry.delta < 0" [class.pos]="entry.delta > 0">
+                {{ entry.delta > 0 ? '+' : '' }}{{ entry.delta | number: '1.0-3' }}
+              </td>
+              <td>{{ entry.reason || '—' }}</td>
+              <td>{{ entry.createdByName || 'Usuario eliminado' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-modal>
