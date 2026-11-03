@@ -1,0 +1,227 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Cobros con QR</h1>
+    <p class="page-subtitle">
+      Conectá tu cuenta de Mercado Pago y cobrá con QR desde la ventana de cobro. La plata entra directo a tu cuenta.
+    </p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else {
+  <div class="stack">
+    @if (error(); as err) {
+      <div class="alert alert-danger" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <div class="alert-body">{{ err }}</div>
+      </div>
+    }
+
+    <!-- 1. Cuenta -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title"><span class="step">1</span> Cuenta de Mercado Pago</h2>
+        @if (status()?.connected) {
+          <span class="badge badge-success"><app-icon name="check" [size]="14" /> Conectada</span>
+        }
+      </div>
+      <div class="card-body stack">
+        @if (status(); as s) {
+          @if (s.connected && !changingToken()) {
+            <div class="account-row">
+              <div>
+                <div class="muted small">Cuenta</div>
+                <strong>{{ s.nickname || 'Mercado Pago' }}</strong>
+                @if (s.testMode) {
+                  <span class="badge badge-warning">Modo prueba</span>
+                }
+              </div>
+              <div class="row">
+                <button type="button" class="btn btn-secondary" (click)="changingToken.set(true)">Cambiar token</button>
+                @if (!confirmDisconnect()) {
+                  <button type="button" class="btn btn-ghost" (click)="confirmDisconnect.set(true)">Desconectar</button>
+                }
+              </div>
+            </div>
+            @if (s.testMode) {
+              <div class="hint-box">
+                <app-icon name="info" [size]="18" />
+                <span>Es un token de prueba: los cobros no mueven plata real. Para cobrar de verdad, cambialo por el de producción.</span>
+              </div>
+            }
+            @if (confirmDisconnect()) {
+              <div class="alert alert-warning">
+                <app-icon name="alert" [size]="18" />
+                <div class="alert-body stack-sm">
+                  <span>Si desconectás, nadie va a poder cobrar con QR hasta que la vuelvas a conectar.</span>
+                  <div class="row">
+                    <button type="button" class="btn btn-danger" [disabled]="disconnecting()" (click)="disconnect()">
+                      {{ disconnecting() ? 'Desconectando…' : 'Sí, desconectar' }}
+                    </button>
+                    <button type="button" class="btn btn-ghost" (click)="confirmDisconnect.set(false)">No</button>
+                  </div>
+                </div>
+              </div>
+            }
+          } @else {
+            <ol class="steps">
+              <li>
+                Entrá a
+                <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" rel="noopener">Tus integraciones</a>
+                con la cuenta donde querés recibir la plata y creá una aplicación (tipo "Pagos presenciales" / "Código QR").
+              </li>
+              <li>En la aplicación, abrí <strong>Credenciales de producción</strong> y copiá el <strong>Access Token</strong> (empieza con <code>APP_USR-</code>).</li>
+              <li>Pegalo acá abajo. Se guarda cifrado y nunca se muestra de nuevo.</li>
+            </ol>
+            <form class="field" (ngSubmit)="connect()">
+              <label for="mp-token">Access Token</label>
+              <div class="token-row">
+                <input
+                  id="mp-token"
+                  name="token"
+                  [type]="showToken() ? 'text' : 'password'"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="APP_USR-…"
+                  [ngModel]="token()"
+                  (ngModelChange)="token.set($event)"
+                />
+                <button type="button" class="btn btn-ghost btn-icon" (click)="showToken.set(!showToken())" [attr.aria-label]="showToken() ? 'Ocultar token' : 'Mostrar token'">
+                  <app-icon name="eye" [size]="18" />
+                </button>
+              </div>
+              <span class="help">Para probar sin plata real podés usar un token de prueba (empieza con <code>TEST-</code>).</span>
+              <div class="row">
+                <button type="submit" class="btn btn-primary" [disabled]="!token().trim() || connecting()">
+                  @if (connecting()) {
+                    <span class="spinner"></span> Verificando con Mercado Pago…
+                  } @else {
+                    Conectar
+                  }
+                </button>
+                @if (changingToken()) {
+                  <button type="button" class="btn btn-ghost" (click)="changingToken.set(false); token.set('')">Cancelar</button>
+                }
+              </div>
+            </form>
+          }
+        }
+      </div>
+    </section>
+
+    <!-- 2. Locales -->
+    @if (status()?.connected) {
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title"><span class="step">2</span> El QR de cada local</h2>
+        </div>
+        <div class="card-body stack">
+          <p class="muted">
+            <strong>QR en pantalla</strong>: se genera uno nuevo por cada cobro y se muestra en la tablet o el celular (ideal para cobrar en la mesa).
+            <strong>QR impreso</strong>: un QR fijo pegado en el mostrador; al cobrar se le carga el monto y el cliente lo escanea.
+          </p>
+
+          @for (location of status()!.locations; track location.locationId) {
+            @if (form(location.locationId); as f) {
+              <div class="location">
+                <div class="location-head">
+                  <strong>{{ location.locationName }}</strong>
+                  @if (location.configured) {
+                    <span class="badge badge-success">Listo para cobrar</span>
+                  } @else {
+                    <span class="badge badge-warning">Falta configurar</span>
+                  }
+                </div>
+
+                <div class="mode-grid" role="radiogroup" [attr.aria-label]="'Tipo de QR de ' + location.locationName">
+                  @for (mode of modes; track mode) {
+                    <button
+                      type="button"
+                      class="mode"
+                      role="radio"
+                      [attr.aria-checked]="f.qrMode === mode"
+                      [class.selected]="f.qrMode === mode"
+                      (click)="setField(location.locationId, 'qrMode', mode)"
+                    >
+                      <app-icon [name]="mode === 'DYNAMIC' ? 'maximize' : 'printer'" [size]="20" />
+                      <span>{{ modeLabels[mode] }}</span>
+                    </button>
+                  }
+                </div>
+
+                @if (!location.configured) {
+                  <p class="help-text">
+                    La primera vez, Mercado Pago pide la dirección del local para crear la sucursal y la caja.
+                  </p>
+                  <div class="form-grid">
+                    <div class="field">
+                      <label [for]="'street-' + location.locationId">Calle</label>
+                      <input [id]="'street-' + location.locationId" type="text" [ngModel]="f.streetName" (ngModelChange)="setField(location.locationId, 'streetName', $event)" />
+                    </div>
+                    <div class="field">
+                      <label [for]="'number-' + location.locationId">Número</label>
+                      <input [id]="'number-' + location.locationId" type="text" inputmode="numeric" [ngModel]="f.streetNumber" (ngModelChange)="setField(location.locationId, 'streetNumber', $event)" />
+                    </div>
+                    <div class="field">
+                      <label [for]="'city-' + location.locationId">Ciudad</label>
+                      <input [id]="'city-' + location.locationId" type="text" placeholder="Mar del Plata" [ngModel]="f.cityName" (ngModelChange)="setField(location.locationId, 'cityName', $event)" />
+                    </div>
+                    <div class="field">
+                      <label [for]="'state-' + location.locationId">Provincia</label>
+                      <input [id]="'state-' + location.locationId" type="text" [ngModel]="f.stateName" (ngModelChange)="setField(location.locationId, 'stateName', $event)" />
+                    </div>
+                    <div class="field span-all">
+                      <label [for]="'coords-' + location.locationId">Ubicación en el mapa</label>
+                      <input
+                        [id]="'coords-' + location.locationId"
+                        type="text"
+                        placeholder="-38.0055, -57.5426"
+                        [ngModel]="f.coordinates"
+                        (ngModelChange)="setField(location.locationId, 'coordinates', $event)"
+                      />
+                      <span class="help">En Google Maps, hacé clic derecho sobre el local y tocá los números que aparecen arriba: se copian solos. Pegalos acá.</span>
+                    </div>
+                    <div class="field span-all">
+                      <label [for]="'ref-' + location.locationId">Referencia <span class="muted">(opcional)</span></label>
+                      <input [id]="'ref-' + location.locationId" type="text" placeholder="Ej.: frente a la plaza" [ngModel]="f.reference" (ngModelChange)="setField(location.locationId, 'reference', $event)" />
+                    </div>
+                  </div>
+                }
+
+                @if (location.configured && location.qrImageUrl && f.qrMode === 'STATIC') {
+                  <div class="hint-box">
+                    <app-icon name="printer" [size]="18" />
+                    <span>
+                      Imprimí el QR de esta caja y pegalo en el mostrador:
+                      <a [href]="location.qrImageUrl" target="_blank" rel="noopener">abrir el QR para imprimir</a>.
+                    </span>
+                  </div>
+                }
+
+                @if (locationErrors()[location.locationId]; as err) {
+                  <div class="alert alert-danger" role="alert">
+                    <app-icon name="alert" [size]="18" />
+                    <div class="alert-body">{{ err }}</div>
+                  </div>
+                }
+
+                @if (!location.configured || modeChanged(location)) {
+                  <div class="row">
+                    <button type="button" class="btn btn-primary" [disabled]="savingLocation() === location.locationId" (click)="saveLocation(location)">
+                      @if (savingLocation() === location.locationId) {
+                        <span class="spinner"></span> {{ location.configured ? 'Guardando…' : 'Creando la caja en Mercado Pago…' }}
+                      } @else {
+                        {{ location.configured ? 'Guardar' : 'Activar el cobro con QR' }}
+                      }
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      </section>
+    }
+  </div>
+}
