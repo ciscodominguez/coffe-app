@@ -1,0 +1,74 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 520px);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.profile .card-body:first-child {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.profile .card-body + .card-body {
+  border-top: 1px solid var(--border);
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 750;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.who .muted {
+  overflow-wrap: anywhere;
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.account-legal {
+  margin-top: 2rem;
+}
+
+/* En el celular, "Como el dispositivo" pasa a dos renglones en vez de cortarse. */
+.theme .segmented button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+  padding: 0.35rem 0.5rem;
+}
