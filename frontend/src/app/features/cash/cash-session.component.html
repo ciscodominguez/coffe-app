@@ -1,0 +1,567 @@
+<div class="page-header no-print">
+  <div class="page-title">
+    <h1>Caja</h1>
+    <p class="page-subtitle">Abrí la caja al empezar el turno y cerrala al terminar contando los billetes.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading no-print"><span class="spinner"></span> Cargando la caja…</div>
+} @else {
+  @if (errorMessage()) {
+    <div class="alert alert-danger no-print"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+  }
+
+  @if (!currentSession()) {
+    <!-- ============ Caja cerrada: abrir ============ -->
+    <section class="card open-card no-print">
+      <div class="open-hero">
+        <span class="hero-icon"><app-icon name="lock" [size]="28" /></span>
+        <div>
+          <h2>La caja está cerrada</h2>
+          <p class="muted">Para poder cobrar pedidos, primero abrí la caja con la plata que hay en el cajón.</p>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="field">
+          <label for="opening-amount">¿Con cuánto efectivo arrancás? (fondo inicial)</label>
+          <div class="input-money">
+            <input
+              id="opening-amount"
+              type="number"
+              inputmode="decimal"
+              step="0.01"
+              min="0"
+              [ngModel]="openingAmount()"
+              (ngModelChange)="openingAmount.set(+$event || 0)"
+            />
+          </div>
+          <div class="row quick">
+            @for (value of openingSuggestions; track value) {
+              <button type="button" class="chip" [class.selected]="openingAmount() === value" (click)="openingAmount.set(value)">
+                $ {{ value | number: '1.0-0' }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="field">
+          <label for="open-notes">Nota <span class="muted">(opcional)</span></label>
+          <input id="open-notes" type="text" placeholder="Ej.: turno mañana" [ngModel]="openNotes()" (ngModelChange)="openNotes.set($event)" />
+        </div>
+        <button type="button" class="btn btn-primary btn-lg" [disabled]="opening()" (click)="openSession()">
+          <app-icon name="wallet" /> {{ opening() ? 'Abriendo…' : 'Abrir caja' }}
+        </button>
+      </div>
+    </section>
+  } @else {
+    @if (currentSession(); as session) {
+      <!-- ============ Caja abierta ============ -->
+      <div class="status-banner no-print">
+        <span class="pulse"></span>
+        <div class="status-text">
+          <strong>Caja abierta</strong>
+          <span class="muted small">
+            Desde las {{ session.openedAt | date: 'HH:mm' }} · la abrió {{ session.openedByName || 'alguien del equipo' }} ·
+            fondo $ {{ session.openingAmount | number: '1.2-2' }}
+          </span>
+        </div>
+        <button type="button" class="btn btn-primary" (click)="toggleCloseForm()">
+          <app-icon name="lock" [size]="18" /> Cerrar caja
+        </button>
+      </div>
+
+      <div class="stats no-print">
+        <div class="card stat">
+          <span class="stat-label">Vendido en el turno</span>
+          <span class="stat-value money">$ {{ session.totalSales | number: '1.2-2' }}</span>
+        </div>
+        <div class="card stat">
+          <span class="stat-label">Efectivo que debería haber</span>
+          <span class="stat-value money">$ {{ session.expectedCashAmount | number: '1.2-2' }}</span>
+          <span class="muted small">fondo + cobros en efectivo ± movimientos</span>
+        </div>
+        <div class="card stat">
+          <span class="stat-label">Cobros registrados</span>
+          <span class="stat-value">{{ session.payments.length }}</span>
+        </div>
+      </div>
+
+      <div class="grid-2 no-print">
+        <section class="card">
+          <div class="card-header"><span class="card-title">Ventas por método</span></div>
+          <div class="card-body">
+            @if (salesByMethodEntries().length === 0) {
+              <p class="empty-inline">Todavía no se cobró nada en este turno.</p>
+            } @else {
+              <ul class="method-bars">
+                @for (entry of salesByMethodEntries(); track entry[0]) {
+                  <li>
+                    <div class="row-between">
+                      <span>
+                        {{ paymentMethodLabels[entry[0]] }}
+                        @if (entry[0] === 'APP') {
+                          <span class="muted small">(no entra en la caja: lo liquida la app)</span>
+                        }
+                      </span>
+                      <strong class="money">$ {{ entry[1] | number: '1.2-2' }}</strong>
+                    </div>
+                    <div class="bar-track"><div class="bar-fill" [style.width.%]="salesShare(entry[1])"></div></div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <span class="card-title">Entradas y salidas de efectivo</span>
+          </div>
+          <div class="card-body stack-sm">
+            <p class="muted small">¿Sacaste plata para pagarle a un proveedor o pusiste cambio? Registralo para que el cierre cierre.</p>
+            <div class="row">
+              <button type="button" class="btn btn-secondary" (click)="openMovementModal('EXPENSE')">
+                <app-icon name="minus" [size]="18" /> Sacar efectivo
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="openMovementModal('INCOME')">
+                <app-icon name="plus" [size]="18" /> Poner efectivo
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card detail-card no-print">
+        <div class="card-header">
+          <div class="segmented">
+            <button type="button" [class.active]="detailTab() === 'payments'" (click)="detailTab.set('payments')">
+              Cobros ({{ session.payments.length }})
+            </button>
+            <button type="button" [class.active]="detailTab() === 'movements'" (click)="detailTab.set('movements')">
+              Movimientos ({{ session.movements.length }})
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (detailTab() === 'payments') {
+            @if (session.payments.length === 0) {
+              <p class="empty-inline">Sin cobros todavía. Se cobran desde Pedidos → "Pedidos abiertos", o desde Cocina.</p>
+            } @else {
+              <ul class="lines">
+                @for (payment of session.payments; track payment.id) {
+                  <li>
+                    <span class="time">{{ payment.createdAt | date: 'HH:mm' }}</span>
+                    <span class="badge badge-primary">{{ paymentMethodLabels[payment.paymentMethod] }}</span>
+                    <span class="who">{{ payment.createdByName || 'Alguien del equipo' }}</span>
+                    <strong class="money">$ {{ payment.amount | number: '1.2-2' }}</strong>
+                  </li>
+                }
+              </ul>
+            }
+          } @else {
+            @if (session.movements.length === 0) {
+              <p class="empty-inline">No se sacó ni se puso efectivo en este turno.</p>
+            } @else {
+              <ul class="lines">
+                @for (movement of session.movements; track movement.id) {
+                  <li>
+                    <span class="time">{{ movement.createdAt | date: 'HH:mm' }}</span>
+                    <span class="badge" [class.badge-success]="movement.type === 'INCOME'" [class.badge-danger]="movement.type === 'EXPENSE'">
+                      {{ movement.type === 'INCOME' ? 'Entró' : 'Salió' }}
+                    </span>
+                    <span class="who">{{ movement.reason }} · {{ movement.createdByName || 'Alguien del equipo' }}</span>
+                    <strong class="money" [class.neg]="movement.type === 'EXPENSE'">
+                      {{ movement.type === 'EXPENSE' ? '−' : '+' }}$ {{ movement.amount | number: '1.2-2' }}
+                    </strong>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </div>
+      </section>
+
+      <!-- Movimiento de efectivo -->
+      <app-modal
+        [open]="showMovementModal()"
+        [title]="movementType() === 'EXPENSE' ? 'Sacar efectivo de la caja' : 'Poner efectivo en la caja'"
+        size="narrow"
+        (closed)="showMovementModal.set(false)"
+      >
+        <div class="stack">
+          <div class="segmented block">
+            <button type="button" [class.active]="movementType() === 'EXPENSE'" (click)="movementType.set('EXPENSE')">Sacar</button>
+            <button type="button" [class.active]="movementType() === 'INCOME'" (click)="movementType.set('INCOME')">Poner</button>
+          </div>
+          <div class="field">
+            <label for="mov-amount">Monto</label>
+            <div class="input-money">
+              <input id="mov-amount" type="number" inputmode="decimal" step="0.01" min="0" [ngModel]="movementAmount()" (ngModelChange)="movementAmount.set(+$event || 0)" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="mov-reason">¿Para qué?</label>
+            <input id="mov-reason" type="text" placeholder="Ej.: pago al proveedor de leche" [ngModel]="movementReason()" (ngModelChange)="movementReason.set($event)" />
+            <div class="row quick">
+              @for (reason of quickReasons[movementType()]; track reason) {
+                <button type="button" class="chip" (click)="movementReason.set(reason)">{{ reason }}</button>
+              }
+            </div>
+          </div>
+          @if (movementError()) {
+            <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ movementError() }}</div></div>
+          }
+        </div>
+        <div modal-footer>
+          <button type="button" class="btn btn-ghost" (click)="showMovementModal.set(false)">Cancelar</button>
+          <button type="button" class="btn btn-primary" [disabled]="addingMovement()" (click)="addMovement()">
+            {{ addingMovement() ? 'Guardando…' : 'Registrar' }}
+          </button>
+        </div>
+      </app-modal>
+
+      <!-- Cierre de caja en 3 pasos -->
+      <app-modal
+        [open]="showCloseForm()"
+        title="Cerrar la caja"
+        [subtitle]="'Paso ' + closeStep() + ' de 3'"
+        size="wide"
+        [dismissable]="!closing()"
+        (closed)="toggleCloseForm()"
+      >
+        <ol class="stepper">
+          <li [class.current]="closeStep() === 1" [class.done]="closeStep() > 1">
+            <span class="step-num">1</span> Contar billetes
+          </li>
+          <li [class.current]="closeStep() === 2" [class.done]="closeStep() > 2">
+            <span class="step-num">2</span> Postnet
+          </li>
+          <li [class.current]="closeStep() === 3">
+            <span class="step-num">3</span> Confirmar
+          </li>
+        </ol>
+
+        @if (closeStep() === 1) {
+          <div class="hint-box">
+            <app-icon name="info" [size]="18" />
+            <span>Contá los billetes del cajón y cargá cuántos hay de cada uno. El total se suma solo.</span>
+          </div>
+          <div class="denom-grid">
+            @for (denomination of denominations; track denomination) {
+              <div class="denom" [class.has]="denominationQuantity(denomination) > 0">
+                <span class="denom-value">$ {{ denomination | number: '1.0-0' }}</span>
+                <div class="denom-controls">
+                  <button type="button" class="qty-btn" (click)="bumpDenomination(denomination, -1)" [attr.aria-label]="'Uno menos de ' + denomination">
+                    <app-icon name="minus" [size]="18" />
+                  </button>
+                  <input
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                    min="0"
+                    [attr.aria-label]="'Cantidad de billetes de ' + denomination"
+                    [ngModel]="denominationQuantity(denomination)"
+                    (ngModelChange)="setDenominationQuantity(denomination, $event)"
+                  />
+                  <button type="button" class="qty-btn" (click)="bumpDenomination(denomination, 1)" [attr.aria-label]="'Uno más de ' + denomination">
+                    <app-icon name="plus" [size]="18" />
+                  </button>
+                </div>
+                <span class="denom-sub money">$ {{ denomination * denominationQuantity(denomination) | number: '1.0-0' }}</span>
+              </div>
+            }
+          </div>
+          <div class="count-total">
+            <span>Total contado</span>
+            <strong class="money">$ {{ countedCashAmount() | number: '1.2-2' }}</strong>
+          </div>
+        }
+
+        @if (closeStep() === 2) {
+          <div class="stack">
+            <div class="hint-box">
+              <app-icon name="card" [size]="18" />
+              <span>Si cobrás con Postnet, sacá el cierre de lote del posnet y copiá acá el número y el total. Si no usás, seguí de largo.</span>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="postnet-batch">N° de lote</label>
+                <input id="postnet-batch" type="text" [ngModel]="postnetBatchNumber()" (ngModelChange)="postnetBatchNumber.set($event)" />
+              </div>
+              <div class="field">
+                <label for="postnet-amount">Total del lote</label>
+                <div class="input-money">
+                  <input id="postnet-amount" type="number" inputmode="decimal" step="0.01" min="0" [ngModel]="postnetReportedAmount()" (ngModelChange)="postnetReportedAmount.set($event === '' || $event === null ? null : +$event)" />
+                </div>
+              </div>
+            </div>
+            @if (session.salesByMethod['DEBIT_CARD'] || session.salesByMethod['CREDIT_CARD']) {
+              <p class="muted small">
+                Según el sistema se cobró con tarjeta:
+                <strong class="money">$ {{ (session.salesByMethod['DEBIT_CARD'] ?? 0) + (session.salesByMethod['CREDIT_CARD'] ?? 0) | number: '1.2-2' }}</strong>
+              </p>
+            }
+          </div>
+        }
+
+        @if (closeStep() === 3) {
+          <div class="stack">
+            <div class="summary-grid">
+              <div class="sum-item">
+                <span class="muted small">Debería haber</span>
+                <strong class="money">$ {{ session.expectedCashAmount | number: '1.2-2' }}</strong>
+              </div>
+              <div class="sum-item">
+                <span class="muted small">Contaste</span>
+                <strong class="money">$ {{ countedCashAmount() | number: '1.2-2' }}</strong>
+              </div>
+            </div>
+            @if (closeDifferencePreview(); as diff) {
+              <div class="alert" [class.alert-danger]="diff < 0" [class.alert-warning]="diff > 0">
+                <app-icon [name]="diff < 0 ? 'alert' : 'info'" />
+                <div class="alert-body">
+                  <strong>{{ diff < 0 ? 'Falta' : 'Sobra' }} $ {{ (diff < 0 ? -diff : diff) | number: '1.2-2' }}.</strong>
+                  Revisá el conteo o dejalo anotado abajo.
+                </div>
+              </div>
+            } @else {
+              <div class="alert alert-success">
+                <app-icon name="check" />
+                <div class="alert-body"><strong>¡La caja cierra justo!</strong></div>
+              </div>
+            }
+            <div class="field">
+              <label for="close-notes">Nota del cierre <span class="muted">(opcional)</span></label>
+              <input id="close-notes" type="text" placeholder="Ej.: faltante por vuelto mal dado" [ngModel]="closeNotes()" (ngModelChange)="closeNotes.set($event)" />
+            </div>
+            @if (closeError()) {
+              <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ closeError() }}</div></div>
+            }
+          </div>
+        }
+
+        <div modal-footer>
+          @if (closeStep() > 1) {
+            <button type="button" class="btn btn-ghost" [disabled]="closing()" (click)="closeStep.set(closeStep() === 3 ? 2 : 1)">
+              <app-icon name="arrow-left" [size]="18" /> Atrás
+            </button>
+          }
+          @if (closeStep() < 3) {
+            <button type="button" class="btn btn-primary" (click)="closeStep.set(closeStep() === 1 ? 2 : 3)">
+              Siguiente <app-icon name="arrow-right" [size]="18" />
+            </button>
+          } @else {
+            <button type="button" class="btn btn-primary" [disabled]="closing()" (click)="closeSession()">
+              <app-icon name="lock" [size]="18" /> {{ closing() ? 'Cerrando…' : 'Cerrar caja' }}
+            </button>
+          }
+        </div>
+      </app-modal>
+    }
+  }
+
+  <!-- ============ Historial ============ -->
+  <section class="history no-print">
+    <h2 class="history-title">Cierres anteriores</h2>
+    @if (history().length === 0) {
+      <p class="empty-inline">Todavía no se cerró ninguna caja en este local.</p>
+    } @else {
+      <div class="history-list">
+        @for (past of history(); track past.id) {
+          <button type="button" class="card card-clickable history-item" (click)="viewReport(past)">
+            <div class="history-date">
+              <strong>{{ past.closedAt | date: 'EEE d/MM' }}</strong>
+              <span class="muted small">{{ past.openedAt | date: 'HH:mm' }} – {{ past.closedAt | date: 'HH:mm' }}</span>
+            </div>
+            <div class="history-info">
+              <span class="money">Vendido $ {{ past.totalSales | number: '1.2-2' }}</span>
+              <span class="muted small">{{ past.closedByName || 'Alguien del equipo' }} cerró</span>
+            </div>
+            @if (past.cashDifference !== null) {
+              @if (past.cashDifference === 0) {
+                <span class="badge badge-success">Justo</span>
+              } @else {
+                <span class="badge" [class.badge-danger]="past.cashDifference < 0" [class.badge-warning]="past.cashDifference > 0">
+                  {{ past.cashDifference < 0 ? 'Faltó' : 'Sobró' }} $ {{ (past.cashDifference < 0 ? -past.cashDifference : past.cashDifference) | number: '1.0-0' }}
+                </span>
+              }
+            }
+            <app-icon name="chevron-right" />
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  @if (selectedReport(); as report) {
+    <div class="report-overlay">
+      <div class="report-toolbar no-print">
+        <button type="button" class="btn btn-primary" (click)="printReport()">
+          <app-icon name="printer" [size]="18" /> Imprimir / PDF
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="printReportTicket(report)">
+          <app-icon name="receipt" [size]="18" /> En ticketera
+        </button>
+        <button type="button" class="btn btn-secondary btn-icon" (click)="closeReport()" aria-label="Cerrar reporte">
+          <app-icon name="x" />
+        </button>
+      </div>
+
+      <div class="print-report">
+        <h1>Cierre de caja</h1>
+        <p class="report-business">{{ businessName() }} @if (locationName()) { — {{ locationName() }} }</p>
+
+        <table class="report-meta-table">
+          <tbody>
+            <tr>
+              <td>Turno</td>
+              <td>{{ report.openedAt | date: 'dd/MM/yyyy HH:mm' }} — {{ report.closedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+            </tr>
+            <tr>
+              <td>Abierto por</td>
+              <td>{{ report.openedByName || 'Usuario desconocido' }}</td>
+            </tr>
+            <tr>
+              <td>Cerrado por</td>
+              <td>{{ report.closedByName || 'Usuario desconocido' }}</td>
+            </tr>
+            <tr>
+              <td>Fondo inicial</td>
+              <td>$ {{ report.openingAmount | number: '1.2-2' }}</td>
+            </tr>
+            @if (report.postnetBatchNumber) {
+              <tr>
+                <td>Lote Postnet</td>
+                <td>{{ report.postnetBatchNumber }} (reportado: $ {{ report.postnetReportedAmount | number: '1.2-2' }})</td>
+              </tr>
+            }
+            @if (report.notes) {
+              <tr>
+                <td>Notas</td>
+                <td>{{ report.notes }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <h2>Ventas por método</h2>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Método</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of (report.salesByMethod | keyvalue); track entry.key) {
+              <tr>
+                <td>{{ paymentLabel(entry.key) }}</td>
+                <td>$ {{ entry.value | number: '1.2-2' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="2">Sin cobros en este turno.</td></tr>
+            }
+            <tr class="report-total-row">
+              <td>Total vendido</td>
+              <td>$ {{ report.totalSales | number: '1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Cobros del turno</h2>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Pedido</th>
+              <th>Método</th>
+              <th>Cobrado por</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (payment of report.payments; track payment.id) {
+              <tr>
+                <td>{{ payment.createdAt | date: 'HH:mm' }}</td>
+                <td>{{ payment.orderId.slice(0, 8) }}</td>
+                <td>{{ paymentMethodLabels[payment.paymentMethod] }}</td>
+                <td>{{ payment.createdByName || 'Usuario desconocido' }}</td>
+                <td>$ {{ payment.amount | number: '1.2-2' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5">Sin cobros en este turno.</td></tr>
+            }
+          </tbody>
+        </table>
+
+        <h2>Movimientos manuales</h2>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Motivo</th>
+              <th>Cargado por</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of report.movements; track movement.id) {
+              <tr>
+                <td>{{ movementTypeLabels[movement.type] }}</td>
+                <td>{{ movement.reason }}</td>
+                <td>{{ movement.createdByName || 'Usuario desconocido' }}</td>
+                <td>$ {{ movement.amount | number: '1.2-2' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4">Sin movimientos cargados.</td></tr>
+            }
+          </tbody>
+        </table>
+
+        @if (report.denominationBreakdown.length > 0) {
+          <h2>Conteo de efectivo por billete</h2>
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Billete</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of report.denominationBreakdown; track line.denomination) {
+                <tr>
+                  <td>$ {{ line.denomination | number: '1.0-0' }}</td>
+                  <td>{{ line.quantity }}</td>
+                  <td>$ {{ line.subtotal | number: '1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        <table class="report-meta-table report-summary">
+          <tbody>
+            <tr>
+              <td>Efectivo esperado</td>
+              <td>$ {{ report.expectedCashAmount | number: '1.2-2' }}</td>
+            </tr>
+            <tr>
+              <td>Efectivo contado</td>
+              <td>$ {{ report.countedCashAmount | number: '1.2-2' }}</td>
+            </tr>
+            @if (report.cashDifference !== null) {
+              <tr class="report-total-row">
+                <td>Diferencia</td>
+                <td [class.negative]="report.cashDifference < 0" [class.positive]="report.cashDifference > 0">
+                  $ {{ report.cashDifference | number: '1.2-2' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+}
