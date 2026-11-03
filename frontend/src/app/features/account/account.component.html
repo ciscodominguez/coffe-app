@@ -1,0 +1,79 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Mi cuenta</h1>
+    <p class="page-subtitle">Tus datos, tu contraseña y cómo querés ver la app.</p>
+  </div>
+</div>
+
+<div class="layout">
+  @if (user(); as u) {
+    <section class="card profile">
+      <div class="card-body">
+        <span class="avatar">{{ initials() }}</span>
+        <div class="who">
+          <strong>{{ u.firstName }} {{ u.lastName }}</strong>
+          <span class="muted">{{ u.email }}</span>
+          <span class="badge badge-primary">{{ roleLabel() }}</span>
+        </div>
+      </div>
+      <div class="card-body theme">
+        <span class="label">Apariencia</span>
+        <div class="segmented block">
+          @for (option of themeOptions; track option.value) {
+            <button type="button" [class.active]="theme.preference() === option.value" (click)="theme.setPreference(option.value)">
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="muted small">Para cambiar tu nombre, email o rol, pedíselo a quien administra el local (Equipo).</p>
+      </div>
+    </section>
+  }
+
+  <form class="card" [formGroup]="form" (ngSubmit)="changePassword()" novalidate>
+    <div class="card-header">
+      <span class="card-title"><app-icon name="lock" [size]="18" /> Cambiar contraseña</span>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="showPasswords.set(!showPasswords())">
+        <app-icon [name]="showPasswords() ? 'x' : 'eye'" [size]="16" /> {{ showPasswords() ? 'Ocultar' : 'Mostrar' }}
+      </button>
+    </div>
+    <div class="card-body stack">
+      <div class="field">
+        <label for="current">Contraseña actual</label>
+        <input id="current" [type]="showPasswords() ? 'text' : 'password'" formControlName="current" autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label for="new">Contraseña nueva</label>
+        <input id="new" [type]="showPasswords() ? 'text' : 'password'" formControlName="password" autocomplete="new-password" />
+        <span class="help" [class.field-error]="form.controls.password.touched && form.controls.password.invalid">
+          Mínimo 8 caracteres.
+        </span>
+      </div>
+      <div class="field">
+        <label for="repeat">Repetí la nueva</label>
+        <input id="repeat" [type]="showPasswords() ? 'text' : 'password'" formControlName="repeat" autocomplete="new-password" />
+        @if (mismatch()) {
+          <span class="field-error">No coinciden.</span>
+        }
+      </div>
+      @if (errorMessage()) {
+        <div class="alert alert-danger" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <div class="alert-body">{{ errorMessage() }}</div>
+        </div>
+      }
+      <div class="hint-box">
+        <app-icon name="info" [size]="18" />
+        <span>Al cambiarla, se cierra tu sesión en los otros celulares o compus donde hayas entrado. En este seguís adentro.</span>
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Cambiar contraseña' }}</button>
+    </div>
+  </form>
+</div>
+
+<!-- V17 — los papeles, siempre a mano. -->
+<div class="account-legal"><app-legal-links /></div>
