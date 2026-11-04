@@ -1,0 +1,53 @@
+.form-card {
+  padding: 1.2rem;
+  margin-top: 1rem;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.done {
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+
+.done h2 {
+  margin: 0.6rem 0 0.4rem;
+}
+
+.done p {
+  margin: 0.3rem 0;
+}
+
+.done-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.code {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  margin: 0.4rem 0 0.8rem !important;
+}

@@ -1,0 +1,155 @@
+<header class="legal-top">
+  <a class="brand" routerLink="/"><span class="brand-mark"><app-icon name="coffee" [size]="18" /></span><strong class="brand-name">COFFE<span>_APP</span></strong></a>
+  <a class="btn btn-ghost btn-sm" routerLink="/privacidad">Política de privacidad</a>
+</header>
+
+<article class="legal">
+  <h1>Términos y condiciones</h1>
+  <p class="meta">Versión vigente desde el {{ info.versionLabel }}.</p>
+
+  <div class="summary">
+    <p>En pocas palabras</p>
+    <ul>
+      <li>COFFE_APP es un sistema en internet para manejar tu café: pedidos, cocina, caja, stock y reportes.</li>
+      <li>Probás gratis; después pagás un abono mensual con débito automático de Mercado Pago y cancelás cuando quieras.</li>
+      <li>Si no se paga, avisamos, damos unos días y después el café queda suspendido hasta que se pague. Tus datos no se borran.</li>
+      <li>Los datos de tu café son tuyos. No los vendemos ni los usamos para publicidad.</li>
+      <li>Los tickets de COFFE_APP no son factura: tus obligaciones con ARCA siguen siendo tuyas.</li>
+    </ul>
+  </div>
+
+  <h2 id="quienes">1. Quiénes somos</h2>
+  <p>
+    COFFE_APP es un servicio prestado por <span [class.todo]="todo(info.providerName)">{{ info.providerName }}</span>, CUIT
+    <span [class.todo]="todo(info.providerTaxId)">{{ info.providerTaxId }}</span>, con domicilio en
+    <span [class.todo]="todo(info.providerAddress)">{{ info.providerAddress }}</span> ("nosotros"). Nos podés escribir a
+    <span [class.todo]="todo(info.contactEmail)">{{ info.contactEmail }}</span>.
+  </p>
+  <p>
+    Estos términos son el acuerdo entre nosotros y el negocio que se registra en COFFE_APP ("el café" o "vos"). Al registrarte y
+    marcar la casilla de aceptación, declarás que los leíste, que los aceptás y que tenés facultades para obligar al negocio.
+  </p>
+
+  <h2 id="servicio">2. Qué es el servicio</h2>
+  <p>
+    COFFE_APP es un software que se usa desde el navegador (compu, tablet o celular) para tomar pedidos, mandarlos a la cocina, cobrar,
+    manejar la caja, controlar el stock, sacar reportes y, si lo configurás, cobrar con QR de Mercado Pago. Lo vamos mejorando: podemos
+    agregar, cambiar o sacar funciones, cuidando no quitarte nada esencial sin avisarte antes.
+  </p>
+
+  <h2 id="cuenta">3. Tu cuenta y tu equipo</h2>
+  <ul>
+    <li>Los datos que cargás al registrarte (razón social, CUIT, condición fiscal, datos del dueño) tienen que ser reales y estar al día.</li>
+    <li>
+      El dueño crea los usuarios de su equipo y elige qué puede hacer cada uno. Sos responsable de lo que se haga con los usuarios de tu
+      café y de cuidar las contraseñas. Si creés que alguien entró sin permiso, cambiá la contraseña y avisanos.
+    </li>
+    <li>Tenés que usar COFFE_APP para tu actividad lícita y respetando las leyes (incluidas las laborales y las fiscales).</li>
+  </ul>
+
+  <h2 id="prueba">4. Prueba gratis, precio y pago</h2>
+  <ul>
+    <li>Un café nuevo tiene un período de prueba gratis (hoy, 14 días), sin tarjeta. La duración que rige es la que se informa al registrarse.</li>
+    <li>
+      Para seguir usándolo, el dueño se suscribe con débito automático mensual de Mercado Pago. El primer débito es el día que termina la
+      prueba (o lo ya pagado) y después se repite cada mes. El precio vigente se muestra en la pantalla "Suscripción" antes de suscribirte.
+    </li>
+    <li>
+      Podemos cambiar el precio. Si lo hacemos, te avisamos con al menos 30 días de anticipación; si no estás de acuerdo, podés cancelar
+      antes de que rija. Las suscripciones ya hechas mantienen su precio hasta que te avisemos el cambio.
+    </li>
+    <li>El pago lo procesa Mercado Pago según sus propios términos. Nosotros nunca vemos ni guardamos los datos de tu tarjeta.</li>
+    <li>
+      <strong>Si no se paga</strong> (no te suscribiste al terminar la prueba, o se rechaza el débito): te avisamos dentro de la app y tenés 7 días
+      para regularizarlo. Pasado ese plazo, el café se suspende: nadie del equipo puede entrar, salvo el dueño para pagar. Apenas se acredita
+      el pago, se reactiva con todos los datos como estaban.
+    </li>
+  </ul>
+
+  <h2 id="baja">5. Cancelar y arrepentirse</h2>
+  <ul>
+    <li>
+      Podés cancelar el débito automático cuando quieras desde la pantalla "Suscripción" o con el
+      <a routerLink="/baja">Botón de baja</a>, sin tener que entrar a la app. Seguís usando COFFE_APP hasta el final de lo que ya pagaste; no
+      hacemos reintegros por los días que no uses, salvo lo que se indica abajo.
+    </li>
+    <li>
+      <strong>Arrepentimiento:</strong> dentro de los 10 días corridos desde que te suscribiste podés arrepentirte con el
+      <a routerLink="/arrepentimiento">Botón de arrepentimiento</a>, sin dar motivos y sin costo: cancelamos la suscripción y te devolvemos lo
+      que se haya cobrado.
+    </li>
+    <li>Con cualquiera de los dos botones te damos al instante un código de trámite y te escribimos para confirmarlo.</li>
+  </ul>
+
+  <h2 id="datos">6. Los datos de tu café</h2>
+  <ul>
+    <li>
+      Los datos que cargás o que se generan al usar COFFE_APP (productos, precios, pedidos, ventas, caja, stock, equipo) son tuyos. Los
+      guardamos y procesamos solo para prestarte el servicio, como explica la <a routerLink="/privacidad">Política de privacidad</a>.
+    </li>
+    <li>Podés bajarlos cuando quieras desde "Reportes" (Excel). Si necesitás otra cosa, escribinos.</li>
+    <li>
+      Si el café se suspende o se da de baja, los datos no se borran solos: quedan guardados por si volvés. Si querés que los borremos,
+      pedínoslo por email y lo hacemos, salvo lo que la ley nos obligue a conservar.
+    </li>
+    <li>Cada café solo ve sus propios datos; ningún otro cliente de COFFE_APP puede verlos.</li>
+  </ul>
+
+  <h2 id="mercadopago">7. Cobros con QR de Mercado Pago</h2>
+  <p>
+    Si conectás tu cuenta de Mercado Pago para cobrarles a tus clientes con QR, el dinero va directo de tu cliente a tu cuenta de Mercado
+    Pago: COFFE_APP no lo toca ni lo retiene. Guardamos cifrado el acceso que nos das para crear los cobros, y podés desconectarlo cuando
+    quieras. La relación con Mercado Pago (comisiones, plazos, contracargos) es entre vos y Mercado Pago.
+  </p>
+
+  <h2 id="fiscal">8. No es un sistema de facturación</h2>
+  <p>
+    Los tickets, cierres de caja y reportes de COFFE_APP son comprobantes internos y <strong>no reemplazan a la factura</strong> ni a ningún
+    registro exigido por ARCA u otros organismos. Cumplir con tus obligaciones fiscales es responsabilidad tuya. Los números de los reportes
+    salen de lo que se carga en el sistema; revisalos con tu contador.
+  </p>
+
+  <h2 id="disponibilidad">9. Funcionamiento y soporte</h2>
+  <ul>
+    <li>
+      Hacemos lo razonable para que COFFE_APP funcione siempre, pero puede haber cortes por mantenimiento, fallas de internet, del
+      proveedor de hosting o de terceros (como Mercado Pago). Si se corta internet, algunos pedidos se pueden guardar en el dispositivo y
+      mandarse al volver la conexión, con las limitaciones que se indican en la app.
+    </li>
+    <li>Te damos soporte por <span [class.todo]="todo(info.contactEmail)">{{ info.contactEmail }}</span>, en días y horarios hábiles.</li>
+  </ul>
+
+  <h2 id="responsabilidad">10. Responsabilidad</h2>
+  <p>
+    Respondemos por los daños que causemos por no cumplir estos términos, en los límites que permita la ley. No respondemos por el uso que
+    se haga de los usuarios de tu café, por datos mal cargados, por cortes de servicios de terceros, ni por lucro cesante o daños
+    indirectos. En la medida en que la ley lo permita, nuestra responsabilidad total no va a superar lo que pagaste por COFFE_APP en los
+    últimos 12 meses. Nada de esto limita los derechos que la ley te reconoce y que no se pueden renunciar.
+  </p>
+
+  <h2 id="usos">11. Usos no permitidos</h2>
+  <p>
+    No se puede usar COFFE_APP para actividades ilegales, intentar entrar a datos de otros cafés, atacar o sobrecargar el sistema, copiarlo o
+    revenderlo sin permiso. Si pasa, podemos suspender la cuenta, avisándote salvo que sea urgente para proteger a otros.
+  </p>
+
+  <h2 id="cambios">12. Cambios en estos términos</h2>
+  <p>
+    Si cambiamos estos términos de forma importante, publicamos la versión nueva con su fecha y, la próxima vez que entres, te la mostramos
+    para que la aceptes. Si no estás de acuerdo, podés cancelar la suscripción.
+  </p>
+
+  <h2 id="ley">13. Ley aplicable</h2>
+  <p>
+    Estos términos se rigen por las leyes de la República Argentina. Ante cualquier conflicto, intentaremos resolverlo primero hablando; si
+    no se puede, son competentes los tribunales ordinarios de <span [class.todo]="todo(info.jurisdiction)">{{ info.jurisdiction }}</span>,
+    sin perjuicio de los derechos que la ley te dé para elegir otra jurisdicción.
+  </p>
+
+  <h2 id="contacto">14. Contacto</h2>
+  <p>
+    Para consultas o reclamos: <span [class.todo]="todo(info.contactEmail)">{{ info.contactEmail }}</span>.
+  </p>
+
+  <div class="legal-foot"><app-legal-links /></div>
+</article>
