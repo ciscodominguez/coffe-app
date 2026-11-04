@@ -1,0 +1,289 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Opciones</h1>
+    <p class="page-subtitle">
+      Tamaño, leche, extras… Se cargan una vez y se usan en todos los productos que quieras. Al tomar el pedido, la app las pregunta.
+    </p>
+  </div>
+  @if (groups().length > 0) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" /> Nuevo grupo</button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando opciones…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else if (groups().length === 0) {
+  <app-empty-state
+    icon="sliders"
+    title="Todavía no hay opciones"
+    text="Por ejemplo &quot;Leche: Entera / Almendra +$300&quot;. Así no tenés que crear un producto por cada combinación. Empezá con un ejemplo y cambiale lo que quieras:"
+  >
+    <div class="examples">
+      @for (example of examples; track example.name) {
+        <button type="button" class="chip" (click)="openNew(example)"><app-icon name="sparkles" [size]="16" /> {{ example.name }}</button>
+      }
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" /> Empezar de cero</button>
+  </app-empty-state>
+} @else {
+  <div class="group-grid">
+    @for (group of groups(); track group.id; let i = $index; let first = $first; let last = $last) {
+      <article class="card group-card">
+        <div class="group-head">
+          <span class="order-num" title="Orden en que se pregunta">{{ i + 1 }}</span>
+          <strong class="group-name">{{ group.name }}</strong>
+          <span class="badge" [class.badge-primary]="group.minSelect > 0">{{ ruleLabel(group) }}</span>
+        </div>
+        <div class="option-chips">
+          @for (option of group.options; track option.id) {
+            <span class="option-chip" [class.unavailable]="!option.isAvailable">
+              @if (option.isDefault) {
+                <app-icon name="check" [size]="13" />
+              }
+              {{ option.name }}
+              @if (!option.isAvailable) {
+                <span class="muted">· no hay</span>
+              } @else if (option.priceDelta > 0) {
+                <span class="money extra">+${{ option.priceDelta | number: '1.0-2' }}</span>
+              }
+              @if (option.ingredientName) {
+                <span class="muted" [title]="'Descuenta ' + option.ingredientQuantity + ' ' + option.ingredientUnit + ' de ' + option.ingredientName">
+                  <app-icon name="box" [size]="12" />
+                </span>
+              }
+            </span>
+          }
+        </div>
+        <p class="used-in"><app-icon name="coffee" [size]="14" /> {{ productsSummary(group) }}</p>
+        <div class="group-actions">
+          @if (confirmingDeleteId() === group.id) {
+            <span class="small confirm-text">¿Borrar "{{ group.name }}"?</span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="confirmingDeleteId.set(null)">No</button>
+            <button type="button" class="btn btn-danger btn-sm" [disabled]="deleting()" (click)="confirmDelete(group)">Sí, borrar</button>
+          } @else {
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(group)"><app-icon name="edit" [size]="16" /> Editar</button>
+            @if (groups().length > 1) {
+              <button type="button" class="btn btn-ghost btn-icon btn-sm" [disabled]="first || reordering()" (click)="moveGroup(i, -1)" aria-label="Preguntar antes" title="Preguntar antes">
+                <app-icon name="arrow-left" [size]="16" />
+              </button>
+              <button type="button" class="btn btn-ghost btn-icon btn-sm" [disabled]="last || reordering()" (click)="moveGroup(i, 1)" aria-label="Preguntar después" title="Preguntar después">
+                <app-icon name="arrow-right" [size]="16" />
+              </button>
+            }
+            <button type="button" class="btn btn-danger-ghost btn-sm" (click)="askDelete(group)" aria-label="Borrar grupo">
+              <app-icon name="trash" [size]="16" />
+            </button>
+          }
+        </div>
+      </article>
+    }
+  </div>
+
+  @if (remainingExamples().length > 0) {
+    <div class="more-examples">
+      <span class="small muted">Sumar un ejemplo:</span>
+      @for (example of remainingExamples(); track example.name) {
+        <button type="button" class="chip" (click)="openNew(example)"><app-icon name="sparkles" [size]="15" /> {{ example.name }}</button>
+      }
+    </div>
+  }
+
+  <div class="hint-box tip">
+    <app-icon name="info" [size]="18" />
+    <span>
+      Al tomar el pedido, los grupos se preguntan en este orden (1, 2, 3…): cambialo con las flechas.
+      ¿Se acabó algo, por ejemplo la leche de almendra? Editá el grupo y destildá <strong>Hay</strong>: deja de ofrecerse hasta que la vuelvas a marcar.
+    </span>
+  </div>
+}
+
+<!-- Editor de grupo -->
+<app-modal
+  [open]="editorOpen()"
+  [title]="editingId() ? 'Editar ' + name() : 'Nuevo grupo de opciones'"
+  subtitle="Qué se pregunta, cuánto suma al precio y en qué productos"
+  size="wide"
+  [dismissable]="false"
+  (closed)="closeEditor()"
+>
+  <div class="stack editor">
+    <div class="field">
+      <label for="group-name">Nombre del grupo</label>
+      <input id="group-name" type="text" maxlength="100" placeholder="Ej.: Leche" [ngModel]="name()" (ngModelChange)="name.set($event)" />
+    </div>
+
+    <div class="rules">
+      <div class="field">
+        <span class="label">¿Hay que elegir sí o sí?</span>
+        <div class="segmented block">
+          <button type="button" [class.active]="!required()" (click)="required.set(false)">Opcional</button>
+          <button type="button" [class.active]="required()" (click)="required.set(true)">Obligatorio</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">¿Cuántas se pueden elegir?</span>
+        <div class="segmented block">
+          <button type="button" [class.active]="choice() === 'single'" (click)="setChoice('single')">Una sola</button>
+          <button type="button" [class.active]="choice() === 'multiple'" (click)="setChoice('multiple')">Varias</button>
+        </div>
+      </div>
+      @if (choice() === 'multiple') {
+        <div class="field">
+          <label for="group-max">Máximo <span class="muted">(vacío = sin límite)</span></label>
+          <input
+            id="group-max"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            step="1"
+            placeholder="Sin límite"
+            [ngModel]="maxMultiple()"
+            (ngModelChange)="maxMultiple.set($event)"
+          />
+        </div>
+      }
+    </div>
+    <p class="help rule-preview">
+      Al tomar el pedido: <strong>{{ ruleLabel({ minSelect: required() ? 1 : 0, maxSelect: choice() === 'single' ? 1 : maxMultiple() || null }) }}</strong>
+    </p>
+
+    <div class="field">
+      <span class="label">Opciones</span>
+      <div class="rows">
+        <div class="row-head" aria-hidden="true">
+          <span>Nombre</span>
+          <span>Suma al precio</span>
+          <span title="Viene marcada al elegir">De entrada</span>
+          <span title="Destildá si se acabó">Hay</span>
+          <span></span>
+        </div>
+        @for (row of rows(); track $index; let i = $index; let last = $last; let first = $first) {
+          <div class="option-row">
+            <div class="option-main">
+              <input
+                type="text"
+                class="opt-name"
+                maxlength="100"
+                placeholder="Ej.: Almendra"
+                aria-label="Nombre de la opción"
+                [ngModel]="row.name"
+                (ngModelChange)="updateRow(i, { name: $event })"
+              />
+              <div class="input-money opt-price">
+                <input
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  step="1"
+                  aria-label="Precio extra"
+                  [ngModel]="row.priceDelta"
+                  (ngModelChange)="updateRow(i, { priceDelta: $event })"
+                />
+              </div>
+              <label class="opt-check opt-default" title="Viene marcada al elegir">
+                <input type="checkbox" [checked]="row.isDefault" (change)="toggleDefault(i)" />
+                <span class="check-caption">De entrada</span>
+              </label>
+              <label class="opt-check opt-available" title="Destildá si se acabó">
+                <input type="checkbox" [checked]="row.isAvailable" (change)="updateRow(i, { isAvailable: !row.isAvailable })" />
+                <span class="check-caption">Hay</span>
+              </label>
+              <div class="opt-tools">
+                <button type="button" class="btn btn-ghost btn-icon" [disabled]="first" (click)="moveRow(i, -1)" aria-label="Subir">
+                  <app-icon name="chevron-down" [size]="16" class="flip" />
+                </button>
+                <button type="button" class="btn btn-ghost btn-icon" [disabled]="last" (click)="moveRow(i, 1)" aria-label="Bajar">
+                  <app-icon name="chevron-down" [size]="16" />
+                </button>
+                <button type="button" class="btn btn-ghost btn-icon" (click)="removeRow(i)" aria-label="Quitar opción">
+                  <app-icon name="trash" [size]="16" />
+                </button>
+              </div>
+            </div>
+            @if (row.showIngredient) {
+              <div class="option-ingredient">
+                <span class="small muted">Cada unidad descuenta</span>
+                @if (activeIngredients().length === 0) {
+                  <span class="small">
+                    No hay insumos cargados: crealos en <a routerLink="/insumos">Insumos y stock</a>.
+                  </span>
+                } @else {
+                  <input
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="0.001"
+                    placeholder="Cantidad"
+                    aria-label="Cantidad de insumo"
+                    class="ing-qty"
+                    [ngModel]="row.ingredientQuantity"
+                    (ngModelChange)="updateRow(i, { ingredientQuantity: $event })"
+                  />
+                  <span class="small muted">{{ ingredientUnit(row.ingredientId) }} de</span>
+                  <select aria-label="Insumo" [ngModel]="row.ingredientId" (ngModelChange)="updateRow(i, { ingredientId: $event })">
+                    @for (ingredient of activeIngredients(); track ingredient.id) {
+                      <option [value]="ingredient.id">{{ ingredient.name }}</option>
+                    }
+                  </select>
+                }
+                <button type="button" class="link-btn small" (click)="toggleIngredient(i)">Quitar</button>
+              </div>
+            } @else {
+              <button type="button" class="link-btn small add-ingredient" (click)="toggleIngredient(i)">
+                <app-icon name="box" [size]="13" /> Descontar insumo <span class="muted">(opcional)</span>
+              </button>
+            }
+          </div>
+        }
+        <button type="button" class="btn btn-secondary btn-sm add-row" (click)="addRow()"><app-icon name="plus" [size]="16" /> Agregar opción</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">¿En qué productos se pregunta? <span class="muted">({{ selectedCount() }} elegidos)</span></span>
+      @if (products().length === 0) {
+        <p class="small muted">Todavía no hay productos. Podés guardar el grupo y asignarlo después desde Productos → Opciones.</p>
+      } @else {
+        <div class="search product-search">
+          <app-icon name="search" [size]="16" />
+          <input type="search" placeholder="Buscar producto…" aria-label="Buscar producto" [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event)" />
+        </div>
+        <div class="product-pick">
+          @for (section of productsByCategory(); track section.category.id) {
+            <div class="pick-section">
+              <label class="pick-category">
+                <input type="checkbox" [checked]="allSelected(section.products)" (change)="toggleCategory(section.products)" />
+                <strong>{{ section.category.name }}</strong>
+                <span class="muted small">· todos</span>
+              </label>
+              <div class="pick-products">
+                @for (product of section.products; track product.id) {
+                  <label class="pick-product" [class.selected]="isProductSelected(product.id)">
+                    <input type="checkbox" [checked]="isProductSelected(product.id)" (change)="toggleProduct(product.id)" />
+                    {{ product.name }}
+                  </label>
+                }
+              </div>
+            </div>
+          } @empty {
+            <p class="small muted">Ningún producto coincide con "{{ productSearch() }}".</p>
+          }
+        </div>
+      }
+    </div>
+
+    @if (editorError()) {
+      <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ editorError() }}</div></div>
+    }
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" [disabled]="saving()" (click)="closeEditor()">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Guardando…' : 'Guardar' }}
+    </button>
+  </div>
+</app-modal>
