@@ -1,0 +1,521 @@
+<header class="sa-top">
+  <div class="sa-brand">
+    <span class="brand-mark"><app-icon name="coffee" [size]="20" /></span>
+    <div class="sa-brand-text">
+      <strong>COFFE<span>_APP</span></strong>
+      <span class="muted small">Panel de clientes</span>
+    </div>
+  </div>
+  <div class="sa-tools">
+    <span class="muted small sa-email">{{ adminEmail() }}</span>
+    <button
+      type="button"
+      class="btn btn-ghost btn-icon"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.resolved() === 'dark' ? 'Pasar a modo claro' : 'Pasar a modo oscuro'"
+    >
+      <app-icon [name]="theme.resolved() === 'dark' ? 'sun' : 'moon'" />
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="logout()"><app-icon name="logout" [size]="16" /> Salir</button>
+  </div>
+</header>
+
+<main class="sa-main">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Cafés clientes</h1>
+      <p class="page-subtitle">Todos los cafés que usan COFFE_APP. Tocá uno para ver su equipo, suspenderlo o cambiarle el plan.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" (click)="requestsOpen.set(true)">
+        <app-icon name="note" [size]="16" /> Pedidos de baja
+        @if (pendingRequests()) {
+          <span class="req-count">{{ pendingRequests() }}</span>
+        }
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="helpOpen.set(true)">
+        <app-icon name="lifebuoy" [size]="16" /> Pedidos de ayuda
+        @if (pendingHelp()) {
+          <span class="req-count">{{ pendingHelp() }}</span>
+        }
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="load()" [disabled]="loading()">
+        <app-icon name="refresh" [size]="16" /> Actualizar
+      </button>
+    </div>
+  </div>
+
+  @if (settings(); as st) {
+    <section class="card settings-strip">
+      <app-icon name="card" [size]="20" />
+      <div class="settings-text">
+        <strong>
+          Suscripción:
+          @if (st.monthlyPrice) {
+            $ {{ st.monthlyPrice | number: '1.0-2' }} por mes
+          } @else {
+            sin precio cargado (nadie puede suscribirse todavía)
+          }
+        </strong>
+        <span class="muted small">
+          {{ st.trialDays }} días de prueba · {{ st.graceDays }} días para pagar antes de suspender ·
+          @if (st.mercadoPagoConfigured) {
+            Mercado Pago conectado
+          } @else {
+            <span class="warn">falta conectar tu Mercado Pago (BILLING_MP_ACCESS_TOKEN en el .env)</span>
+          } ·
+          @if (st.supportWhatsapp) {
+            WhatsApp de soporte: +{{ st.supportWhatsapp }}
+          } @else {
+            <span class="warn">falta tu WhatsApp de soporte</span>
+          }
+        </span>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="openSettings()"><app-icon name="edit" [size]="16" /> Editar</button>
+    </section>
+  }
+
+  <section class="tiles">
+    <button type="button" class="card tile" [class.selected]="filter() === 'ALL'" (click)="filter.set('ALL')">
+      <span class="tile-label">Cafés</span>
+      <span class="tile-value">{{ counts().ALL }}</span>
+    </button>
+    <button type="button" class="card tile t-active" [class.selected]="filter() === 'ACTIVE'" (click)="filter.set('ACTIVE')">
+      <span class="tile-label">Activos</span>
+      <span class="tile-value">{{ counts().ACTIVE }}</span>
+    </button>
+    <button type="button" class="card tile t-trial" [class.selected]="filter() === 'TRIAL'" (click)="filter.set('TRIAL')">
+      <span class="tile-label">En prueba</span>
+      <span class="tile-value">{{ counts().TRIAL }}</span>
+    </button>
+    <button type="button" class="card tile t-blocked" [class.selected]="filter() === 'SUSPENDED'" (click)="filter.set('SUSPENDED')">
+      <span class="tile-label">Suspendidos</span>
+      <span class="tile-value">{{ counts().SUSPENDED }}</span>
+    </button>
+  </section>
+
+  <div class="toolbar">
+    <div class="search">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="search"
+        placeholder="Buscar por nombre, CUIT o email del dueño"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+        aria-label="Buscar café"
+      />
+    </div>
+    <div class="segmented">
+      <button type="button" [class.active]="filter() === 'ALL'" (click)="filter.set('ALL')">Todos</button>
+      @for (s of statuses; track s) {
+        <button type="button" [class.active]="filter() === s" (click)="filter.set(s)">
+          {{ statusLabels[s] }}
+          @if (counts()[s]) {
+            <span class="seg-count">{{ counts()[s] }}</span>
+          }
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading"><span class="spinner"></span> Cargando cafés…</div>
+  } @else if (errorMessage()) {
+    <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+  } @else if (filtered().length === 0) {
+    <div class="card empty">
+      <app-icon name="store" [size]="28" />
+      <strong>{{ businesses().length === 0 ? 'Todavía no hay cafés registrados.' : 'Ningún café coincide con la búsqueda.' }}</strong>
+    </div>
+  } @else {
+    <div class="table-wrap desktop-only">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Café</th>
+            <th>Dueño</th>
+            <th>Alta</th>
+            <th>Plan</th>
+            <th>Estado</th>
+            <th>Cobro</th>
+            <th class="num">Locales</th>
+            <th class="num">Usuarios</th>
+            <th class="num">Pedidos 30 días</th>
+            <th>Último pedido</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of filtered(); track b.id) {
+            <tr class="row-click" (click)="open(b)" tabindex="0" (keydown.enter)="open(b)">
+              <td>
+                <strong class="cafe-name">{{ name(b) }}</strong>
+                <span class="muted small block nowrap">CUIT {{ cuit(b.taxId) }}</span>
+              </td>
+              <td>
+                {{ b.ownerName || '—' }}
+                <span class="muted small block">{{ b.ownerEmail }}</span>
+              </td>
+              <td class="nowrap">{{ b.createdAt | date: 'dd/MM/yyyy' }}</td>
+              <td><span class="badge">{{ planLabels[b.plan] }}</span></td>
+              <td>
+                <span class="badge st st-{{ b.status }}">{{ statusLabels[b.status] }}</span>
+              </td>
+              <td class="nowrap">
+                <span class="bill bill-{{ b.billingState }}">{{ billingText(b) }}</span>
+                @if (b.subscriptionStatus === 'authorized') {
+                  <span class="muted small block">Débito automático</span>
+                }
+              </td>
+              <td class="num">{{ b.locations }}</td>
+              <td class="num">{{ b.activeUsers }}</td>
+              <td class="num">{{ b.ordersLast30Days }}</td>
+              <td class="nowrap" [class.quiet]="isQuiet(b)">{{ ago(b.lastOrderAt) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cards mobile-only">
+      @for (b of filtered(); track b.id) {
+        <button type="button" class="card cafe-card" (click)="open(b)">
+          <div class="row-between">
+            <strong class="cafe-name">{{ name(b) }}</strong>
+            <span class="badge st st-{{ b.status }}">{{ statusLabels[b.status] }}</span>
+          </div>
+          <span class="muted small">{{ b.ownerName || '—' }} · {{ b.ownerEmail }}</span>
+          <div class="cafe-facts small">
+            <span class="bill bill-{{ b.billingState }}"><app-icon name="card" [size]="14" /> {{ billingText(b) }}</span>
+            <span><app-icon name="tag" [size]="14" /> {{ planLabels[b.plan] }}</span>
+            <span><app-icon name="store" [size]="14" /> {{ b.locations }}</span>
+            <span><app-icon name="users" [size]="14" /> {{ b.activeUsers }}</span>
+            <span><app-icon name="receipt" [size]="14" /> {{ b.ordersLast30Days }} en 30 días</span>
+            <span [class.quiet]="isQuiet(b)"><app-icon name="clock" [size]="14" /> {{ ago(b.lastOrderAt) }}</span>
+          </div>
+        </button>
+      }
+    </div>
+  }
+</main>
+
+@if (detailLoading()) {
+  <div class="detail-loading"><span class="spinner"></span></div>
+}
+
+<app-modal
+  [open]="detail() !== null"
+  [title]="detail() ? name(detail()!.summary) : ''"
+  [subtitle]="detail() ? detail()!.summary.legalName + ' · CUIT ' + cuit(detail()!.summary.taxId) : ''"
+  size="wide"
+  (closed)="close()"
+>
+  @if (detail(); as d) {
+    <div class="detail">
+      <div class="facts">
+        <div><span class="label">Dueño</span><span>{{ d.summary.ownerName || '—' }}</span><span class="muted small">{{ d.summary.ownerEmail }}</span></div>
+        <div><span class="label">Alta</span><span>{{ d.summary.createdAt | date: 'dd/MM/yyyy' }}</span><span class="muted small">{{ fiscal(d.summary.fiscalCondition) }}</span></div>
+        <div><span class="label">Pedidos 30 días</span><span>{{ d.summary.ordersLast30Days }}</span><span class="muted small">Último: {{ ago(d.summary.lastOrderAt) }}</span></div>
+      </div>
+
+      <section class="block">
+        <h3>Cobro</h3>
+        <div class="billing-box">
+          <div class="billing-line">
+            <span class="bill bill-{{ d.summary.billingState }}">{{ billingText(d.summary) }}</span>
+            <span class="muted small">{{ subscriptionText(d.billing.subscriptionStatus) }}{{ d.billing.payerEmail ? ' · ' + d.billing.payerEmail : '' }}</span>
+          </div>
+          @if (d.billing.payments.length) {
+            <ul class="mini-payments">
+              @for (p of d.billing.payments.slice(0, 4); track $index) {
+                <li>
+                  <span>{{ p.chargedAt | date: 'dd/MM/yyyy' }}</span>
+                  <span class="money">$ {{ p.amount | number: '1.0-2' }}</span>
+                  <span class="badge" [class.badge-success]="p.status === 'approved'" [class.badge-danger]="p.status !== 'approved'">
+                    {{ p.status === 'approved' ? 'Pagado' : 'Rechazado' }}
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+          <label class="check-row">
+            <input type="checkbox" [checked]="editExempt()" (change)="editExempt.set(!editExempt())" />
+            Sin cobro (cortesía): no paga ni se suspende solo
+          </label>
+          <div class="extend">
+            <span class="small">Sumar días de prueba:</span>
+            <input type="number" min="1" max="90" data-no-autofocus [ngModel]="extendDays()" (ngModelChange)="extendDays.set($event)" aria-label="Días a sumar" />
+            <button type="button" class="btn btn-secondary btn-sm" (click)="extendTrial()" [disabled]="extending()">Sumar</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h3>Estado</h3>
+        <div class="segmented block-seg">
+          @for (s of statuses; track s) {
+            <button type="button" [class.active]="editStatus() === s" (click)="editStatus.set(s)">{{ statusLabels[s] }}</button>
+          }
+        </div>
+        @if (isBlocked(editStatus())) {
+          <div class="field">
+            <label for="reason">Motivo (lo ve el café al querer entrar)</label>
+            <input id="reason" type="text" maxlength="255" placeholder="Ej: falta de pago de septiembre" [ngModel]="editReason()" (ngModelChange)="editReason.set($event)" />
+          </div>
+        }
+        @if (blocking()) {
+          <div class="alert alert-warning">
+            <app-icon name="lock" [size]="18" />
+            <div class="alert-body">
+              Nadie de este café va a poder entrar: las sesiones abiertas se cierran al instante. Los datos quedan guardados y, si lo
+              reactivás, vuelve todo como estaba.
+            </div>
+          </div>
+        }
+        @if (unblocking()) {
+          <div class="alert alert-info">
+            <app-icon name="info" [size]="18" />
+            <div class="alert-body">
+              Al guardar, el café vuelve a poder entrar con sus usuarios de siempre.
+              @if (d.billing.state === 'SUSPENDED' && !editExempt()) {
+                Ojo: está suspendido por falta de pago y en la próxima revisión se vuelve a suspender solo. Mejor usá "Sumar días de prueba" o "Sin cobro".
+              }
+            </div>
+          </div>
+        }
+      </section>
+
+      <section class="block">
+        <h3>Plan</h3>
+        <div class="segmented block-seg">
+          @for (p of plans; track p) {
+            <button type="button" [class.active]="editPlan() === p" (click)="editPlan.set(p)">{{ planLabels[p] }}</button>
+          }
+        </div>
+        <p class="muted small">Es solo una etiqueta: no limita nada. El precio es uno solo para todos los cafés (arriba, en "Suscripción").</p>
+      </section>
+
+      <section class="block">
+        <h3>Notas internas</h3>
+        <textarea
+          data-no-autofocus
+          rows="3"
+          maxlength="2000"
+          placeholder="Solo las ves vos. Ej: contacto, acuerdos, cuándo llamar."
+          [ngModel]="editNotes()"
+          (ngModelChange)="editNotes.set($event)"
+        ></textarea>
+      </section>
+
+      <div class="two-cols">
+        <section class="block">
+          <h3>Equipo ({{ d.users.length }})</h3>
+          <ul class="plain">
+            @for (u of d.users; track u.email) {
+              <li [class.off]="!u.isActive">
+                <div>
+                  <strong>{{ u.name }}</strong>
+                  <span class="muted small block">{{ u.email }}</span>
+                </div>
+                <span class="badge">{{ u.isActive ? roleLabel(u.role) : 'De baja' }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+        <section class="block">
+          <h3>Locales ({{ d.locations.length }})</h3>
+          <ul class="plain">
+            @for (l of d.locations; track $index) {
+              <li [class.off]="!l.isActive">
+                <div>
+                  <strong>{{ l.name }}</strong>
+                  <span class="muted small block">{{ l.address || 'Sin dirección' }}</span>
+                </div>
+                @if (!l.isActive) {
+                  <span class="badge">Cerrado</span>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      </div>
+
+      <section class="block">
+        <h3>Historial</h3>
+        @if (d.history.length === 0) {
+          <p class="muted small">Todavía no hiciste cambios en este café.</p>
+        } @else {
+          <ul class="history">
+            @for (h of d.history; track $index) {
+              <li>
+                <app-icon [name]="historyIcon(h.action)" [size]="16" />
+                <div>
+                  <span>{{ h.detail }}</span>
+                  <span class="muted small block">{{ h.createdAt | date: 'dd/MM/yyyy HH:mm' }} · {{ h.adminEmail || 'Automático' }}</span>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      @if (formError()) {
+        <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ formError() }}</div></div>
+      }
+    </div>
+  }
+  <div modal-footer class="footer">
+    <button type="button" class="btn btn-ghost" (click)="close()">Cerrar</button>
+    <button
+      type="button"
+      class="btn"
+      [class.btn-primary]="!blocking()"
+      [class.btn-danger]="blocking()"
+      [disabled]="!dirty() || saving()"
+      (click)="save()"
+    >
+      @if (saving()) {
+        <span class="spinner"></span>
+      }
+      {{ blocking() ? (editStatus() === 'CANCELLED' ? 'Dar de baja' : 'Suspender café') : unblocking() ? 'Reactivar café' : 'Guardar cambios' }}
+    </button>
+  </div>
+</app-modal>
+
+<app-modal [open]="settingsOpen()" title="Configuración" subtitle="Lo que paga cada café por mes y adónde te escriben" size="narrow" (closed)="settingsOpen.set(false)">
+  <div class="stack">
+    <div class="field">
+      <label for="price">Precio por mes (por café)</label>
+      <input id="price" type="number" min="1" step="100" class="input-money" placeholder="Ej: 25000" [ngModel]="editPrice()" (ngModelChange)="editPrice.set($event)" />
+      <span class="help">Vacío = todavía nadie puede suscribirse. Si lo cambiás, vale para las suscripciones nuevas: las que ya están siguen con su precio.</span>
+    </div>
+    <div class="form-grid two">
+      <div class="field">
+        <label for="trial">Días de prueba gratis</label>
+        <input id="trial" type="number" min="0" max="90" [ngModel]="editTrialDays()" (ngModelChange)="editTrialDays.set($event)" />
+        <span class="help">Para los cafés que se registren de ahora en más.</span>
+      </div>
+      <div class="field">
+        <label for="grace">Días para pagar antes de suspender</label>
+        <input id="grace" type="number" min="0" max="60" [ngModel]="editGraceDays()" (ngModelChange)="editGraceDays.set($event)" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="wa">WhatsApp de soporte</label>
+      <input id="wa" type="tel" inputmode="numeric" maxlength="20" placeholder="Ej: 5492235550000" [ngModel]="editWhatsapp()" (ngModelChange)="editWhatsapp.set($event)" />
+      <span class="help">Adonde escriben los cafés con el botón "Soporte". Con 54, 9 y el código de área, sin el 0 ni el 15. Vacío = el botón solo te deja el aviso acá.</span>
+    </div>
+    @if (settingsError()) {
+      <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ settingsError() }}</div></div>
+    }
+  </div>
+  <div modal-footer class="footer">
+    <button type="button" class="btn btn-ghost" (click)="settingsOpen.set(false)">Cancelar</button>
+    <button type="button" class="btn btn-primary" (click)="saveSettings()" [disabled]="settingsSaving()">Guardar</button>
+  </div>
+</app-modal>
+
+<app-modal
+  [open]="requestsOpen()"
+  title="Pedidos de arrepentimiento y baja"
+  subtitle="Llegan desde los botones del login y del registro (sin tener que entrar)"
+  size="wide"
+  (closed)="requestsOpen.set(false)"
+>
+  @if (requests().length === 0) {
+    <p class="muted">Todavía no llegó ningún pedido.</p>
+  } @else {
+    <ul class="requests">
+      @for (r of requests(); track r.id) {
+        <li [class.req-done]="r.status === 'DONE'">
+          <div class="req-head">
+            <span class="badge" [class.badge-danger]="r.type === 'WITHDRAWAL'" [class.badge-warning]="r.type === 'CANCELLATION'">
+              {{ r.type === 'WITHDRAWAL' ? 'Arrepentimiento' : 'Baja' }}
+            </span>
+            <strong class="mono">{{ r.code }}</strong>
+            <span class="muted small">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="r.status === 'PENDING'" [class.btn-ghost]="r.status === 'DONE'" (click)="toggleRequest(r)" [disabled]="requestBusy() === r.id">
+              {{ r.status === 'PENDING' ? 'Marcar atendido' : 'Volver a pendiente' }}
+            </button>
+          </div>
+          <div class="req-body small">
+            <span><strong>{{ r.contactName }}</strong> · {{ r.email }}</span>
+            <span>CUIT {{ r.taxId ? cuit(r.taxId) : '—' }} · {{ r.cafeName || 'sin nombre de café' }}</span>
+            <span>
+              Café:
+              @if (r.businessName) {
+                <strong>{{ r.businessName }}</strong>
+              } @else {
+                <span class="warn">no coincide con ninguno</span>
+              }
+              — {{ r.result }}
+            </span>
+            @if (r.message) {
+              <span class="req-msg">"{{ r.message }}"</span>
+            }
+            <input
+              class="req-note"
+              data-no-autofocus
+              placeholder="Nota interna (ej: le devolví la plata por Mercado Pago el 3/10)"
+              [value]="r.adminNote ?? ''"
+              (blur)="saveRequestNote(r, $any($event.target).value)"
+            />
+          </div>
+        </li>
+      }
+    </ul>
+  }
+  <div modal-footer class="footer">
+    <button type="button" class="btn btn-ghost" (click)="requestsOpen.set(false)">Cerrar</button>
+  </div>
+</app-modal>
+
+<!-- V18 — pedidos de ayuda del botón "Soporte" -->
+<app-modal
+  [open]="helpOpen()"
+  title="Pedidos de ayuda"
+  subtitle="Llegan del botón Soporte de cada café, con los datos de lo que pasó"
+  size="wide"
+  (closed)="helpOpen.set(false)"
+>
+  @if (helpRequests().length === 0) {
+    <p class="muted">Todavía nadie pidió ayuda.</p>
+  } @else {
+    <ul class="requests">
+      @for (r of helpRequests(); track r.id) {
+        <li [class.req-done]="r.status === 'DONE'">
+          <div class="req-head">
+            <strong>{{ r.businessName || 'Café' }}</strong>
+            <span class="muted small">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="r.status === 'PENDING'" [class.btn-ghost]="r.status === 'DONE'" (click)="toggleHelp(r)" [disabled]="helpBusy() === r.id">
+              {{ r.status === 'PENDING' ? 'Marcar resuelto' : 'Volver a pendiente' }}
+            </button>
+          </div>
+          <div class="req-body small">
+            <span><strong>{{ r.userName }}</strong> ({{ roleName(r.userRole) }}) · pantalla <span class="mono">{{ r.page || '—' }}</span></span>
+            @if (r.message) {
+              <span class="req-msg">"{{ r.message }}"</span>
+            }
+            @if (r.lastError) {
+              <span class="help-error mono">{{ r.lastError }}</span>
+            }
+            @if (r.userAgent) {
+              <span class="muted">{{ browser(r.userAgent) }}</span>
+            }
+            <input
+              class="req-note"
+              data-no-autofocus
+              placeholder="Nota interna (ej: era el wifi del local)"
+              [value]="r.adminNote ?? ''"
+              (blur)="saveHelpNote(r, $any($event.target).value)"
+            />
+          </div>
+        </li>
+      }
+    </ul>
+  }
+  <div modal-footer class="footer">
+    <button type="button" class="btn btn-ghost" (click)="helpOpen.set(false)">Cerrar</button>
+  </div>
+</app-modal>
