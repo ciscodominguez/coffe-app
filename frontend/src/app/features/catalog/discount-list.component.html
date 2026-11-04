@@ -1,0 +1,131 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Descuentos</h1>
+    <p class="page-subtitle">
+      La lista que se elige con un toque al cobrar. Un supervisor, administrador o dueño también puede poner uno a mano, con motivo.
+    </p>
+  </div>
+  @if (discounts().length > 0) {
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" /> Nuevo descuento</button>
+    </div>
+  }
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando descuentos…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else if (discounts().length === 0) {
+  <app-empty-state
+    icon="percent"
+    title="Todavía no hay descuentos"
+    text="Por ejemplo &quot;Jubilados 10%&quot;. Al cobrar se aplican con un toque, a todo el pedido o a un producto. Empezá con un ejemplo:"
+  >
+    <div class="examples">
+      @for (example of examples; track example.name) {
+        <button type="button" class="chip" (click)="openNew(example)">
+          <app-icon name="sparkles" [size]="16" /> {{ example.name }} · {{ valueLabel(example) }}
+        </button>
+      }
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()"><app-icon name="plus" /> Empezar de cero</button>
+  </app-empty-state>
+} @else {
+  <div class="list card">
+    @for (discount of sorted(); track discount.id) {
+      <div class="discount-row" [class.inactive]="!discount.isActive">
+        <span class="value-badge">{{ valueLabel(discount) }}</span>
+        <div class="discount-text">
+          <strong>{{ discount.name }}</strong>
+          <span class="muted small">
+            @if (!discount.isActive) {
+              Desactivado: no se ofrece al cobrar
+            } @else if (discount.requiresAuthorization) {
+              <app-icon name="lock" [size]="12" /> Solo supervisor, administrador o dueño
+            } @else {
+              Lo puede aplicar cualquiera que cobra
+            }
+          </span>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="toggleActive(discount)">
+          {{ discount.isActive ? 'Desactivar' : 'Activar' }}
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(discount)"><app-icon name="edit" [size]="16" /> Editar</button>
+      </div>
+    }
+  </div>
+
+  @if (remainingExamples().length > 0) {
+    <div class="more-examples">
+      <span class="small muted">Sumar un ejemplo:</span>
+      @for (example of remainingExamples(); track example.name) {
+        <button type="button" class="chip" (click)="openNew(example)"><app-icon name="sparkles" [size]="15" /> {{ example.name }}</button>
+      }
+    </div>
+  }
+
+  <div class="hint-box tip">
+    <app-icon name="info" [size]="18" />
+    <span>
+      Se aplican desde la ventana de <strong>Cobrar</strong> (en Pedidos o en Cocina): a todo el pedido o a un producto. Queda registrado quién lo aplicó y, si fue a mano, por qué.
+    </span>
+  </div>
+}
+
+<app-modal
+  [open]="editorOpen()"
+  [title]="editingId() ? 'Editar descuento' : 'Nuevo descuento'"
+  size="narrow"
+  [dismissable]="!saving()"
+  (closed)="editorOpen.set(false)"
+>
+  <div class="stack">
+    <div class="field">
+      <label for="discount-name">Nombre</label>
+      <input id="discount-name" type="text" maxlength="150" placeholder="Ej.: Jubilados" [ngModel]="name()" (ngModelChange)="name.set($event)" />
+    </div>
+    <div class="field">
+      <span class="label">¿Cómo descuenta?</span>
+      <div class="segmented block">
+        <button type="button" [class.active]="type() === 'PERCENTAGE'" (click)="type.set('PERCENTAGE')">Porcentaje (%)</button>
+        <button type="button" [class.active]="type() === 'FIXED_AMOUNT'" (click)="type.set('FIXED_AMOUNT')">Monto fijo ($)</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="discount-value">{{ type() === 'PERCENTAGE' ? 'Porcentaje' : 'Monto' }}</label>
+      <div [class.input-money]="type() === 'FIXED_AMOUNT'" [class.input-percent]="type() === 'PERCENTAGE'">
+        <input
+          id="discount-value"
+          type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
+          [placeholder]="type() === 'PERCENTAGE' ? '10' : '500'"
+          [ngModel]="value()"
+          (ngModelChange)="value.set($event === '' || $event === null ? null : +$event)"
+        />
+      </div>
+      <span class="help">
+        {{ type() === 'PERCENTAGE' ? 'Sobre lo que vale el pedido o el producto.' : 'Nunca descuenta más de lo que vale lo que se descuenta.' }}
+      </span>
+    </div>
+    <label class="check-row">
+      <input type="checkbox" [checked]="requiresAuthorization()" (change)="requiresAuthorization.set(!requiresAuthorization())" />
+      Pide autorización: solo lo aplica un supervisor, administrador o dueño
+    </label>
+    @if (editingId()) {
+      <label class="check-row">
+        <input type="checkbox" [checked]="isActive()" (change)="isActive.set(!isActive())" />
+        Activo (se ofrece al cobrar)
+      </label>
+    }
+    @if (editorError()) {
+      <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ editorError() }}</div></div>
+    }
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" [disabled]="saving()" (click)="editorOpen.set(false)">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+  </div>
+</app-modal>
