@@ -1,0 +1,70 @@
+<header class="legal-top">
+  <a class="brand" routerLink="/"><span class="brand-mark"><app-icon name="coffee" [size]="18" /></span><strong class="brand-name">COFFE<span>_APP</span></strong></a>
+  <a class="btn btn-ghost btn-sm" routerLink="/terminos">Términos y condiciones</a>
+</header>
+
+<article class="legal">
+  <h1>{{ isWithdrawal() ? 'Botón de arrepentimiento' : 'Botón de baja' }}</h1>
+
+  @if (result(); as r) {
+    <div class="card done">
+      <span class="done-icon"><app-icon name="check" [size]="26" /></span>
+      <h2>Recibimos tu pedido</h2>
+      <p>Tu código de trámite es</p>
+      <p class="code">{{ r.code }}</p>
+      <p class="muted">
+        Guardalo. También te lo mandamos por email. Si el CUIT y el email coinciden con los del dueño del café, ya cortamos el débito automático
+        de la suscripción. Te vamos a escribir para confirmarlo{{ isWithdrawal() ? ' y coordinar la devolución de lo cobrado' : '' }}.
+      </p>
+    </div>
+  } @else {
+    @if (isWithdrawal()) {
+      <p>
+        Si te suscribiste a COFFE_APP hace <strong>10 días corridos o menos</strong>, podés arrepentirte sin dar motivos y sin costo:
+        cancelamos la suscripción y te devolvemos lo que se haya cobrado.
+      </p>
+    } @else {
+      <p>
+        Pedí la baja del servicio sin tener que entrar a la app. Cortamos el débito automático y seguís usando COFFE_APP hasta el final de lo
+        que ya pagaste. Si podés entrar, también lo cancelás desde <strong>Suscripción</strong>.
+      </p>
+    }
+    <p class="muted small">Para encontrar tu café, usá el email del dueño y el CUIT del negocio.</p>
+
+    <form class="card form-card stack" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="name">Nombre y apellido</label>
+        <input id="name" name="name" autocomplete="name" [ngModel]="contactName()" (ngModelChange)="contactName.set($event)" />
+      </div>
+      <div class="field">
+        <label for="email">Email del dueño</label>
+        <input id="email" name="email" type="email" autocomplete="email" [ngModel]="email()" (ngModelChange)="email.set($event)" />
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="cuit">CUIT del café</label>
+          <input id="cuit" name="cuit" inputmode="numeric" placeholder="20-12345678-9" [ngModel]="taxId()" (ngModelChange)="taxId.set($event)" />
+        </div>
+        <div class="field">
+          <label for="cafe">Nombre del café</label>
+          <input id="cafe" name="cafe" [ngModel]="cafeName()" (ngModelChange)="cafeName.set($event)" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="msg">Comentario (opcional)</label>
+        <textarea id="msg" name="msg" rows="3" maxlength="2000" [ngModel]="message()" (ngModelChange)="message.set($event)"></textarea>
+      </div>
+      @if (errorMessage()) {
+        <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ errorMessage() }}</div></div>
+      }
+      <button type="submit" class="btn btn-primary btn-lg btn-block" [disabled]="sending()">
+        @if (sending()) {
+          <span class="spinner"></span>
+        }
+        {{ isWithdrawal() ? 'Enviar arrepentimiento' : 'Pedir la baja' }}
+      </button>
+    </form>
+  }
+
+  <div class="legal-foot"><app-legal-links /></div>
+</article>
