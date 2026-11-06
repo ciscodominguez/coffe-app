@@ -1,0 +1,91 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Apps de delivery</h1>
+    <p class="page-subtitle">Prendé solo las apps que usa tu café. Si no usás ninguna, dejá todo apagado: no cambia nada.</p>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else {
+  <div class="cards">
+    @for (card of cards(); track card.kind) {
+      <section class="card app-card" [class.on]="card.channel && card.channel.mode !== 'OFF'">
+        <header class="app-head">
+          <span class="ch-dot" [class]="'ch-dot ' + tone(card.kind)"></span>
+          <h2>{{ card.name }}</h2>
+          @if (card.hint) {
+            <span class="muted small">{{ card.hint }}</span>
+          }
+        </header>
+        <div class="modes" role="radiogroup" [attr.aria-label]="'Modo de ' + card.name">
+          <button type="button" role="radio" [attr.aria-checked]="!card.channel || card.channel.mode === 'OFF'" [class.active]="!card.channel || card.channel.mode === 'OFF'" [disabled]="busy() === card.kind" (click)="setMode(card, 'OFF')">
+            Apagada
+          </button>
+          <button type="button" role="radio" [attr.aria-checked]="card.channel?.mode === 'MANUAL'" [class.active]="card.channel?.mode === 'MANUAL'" [disabled]="busy() === card.kind" (click)="setMode(card, 'MANUAL')">
+            Manual
+          </button>
+          <button type="button" role="radio" aria-checked="false" disabled title="Próximamente: cuando la app apruebe a COFFE_APP">
+            Automático <span class="soon">Próximamente</span>
+          </button>
+        </div>
+        @if (card.channel && card.channel.mode !== 'OFF') {
+          <div class="details">
+            <p class="small how"><app-icon name="info" [size]="15" /> <span>Atendés el pedido en la tablet de {{ card.name }} y lo cargás acá en segundos, desde <a routerLink="/pedidos">Pedidos</a>. Sale la comanda como cualquier otra.</span></p>
+            <label class="commission">
+              Comisión que te cobra
+              <span class="pct">
+                <input type="number" inputmode="decimal" min="0" max="100" step="0.5" [value]="card.channel.commissionPct" (change)="saveCommission(card.channel, $any($event.target).value)" />
+                %
+              </span>
+            </label>
+          </div>
+        }
+      </section>
+    }
+
+    <section class="card app-card others">
+      <header class="app-head">
+        <span class="ch-dot ch-other"></span>
+        <h2>Otras apps</h2>
+        <span class="muted small">Una app del barrio, Mercado Libre, el WhatsApp del café…</span>
+      </header>
+      @for (other of others(); track other.id) {
+        <div class="other-row">
+          <input class="other-name" type="text" maxlength="40" [value]="other.name" (change)="rename(other, $any($event.target).value)" [attr.aria-label]="'Nombre de ' + other.name" />
+          <div class="modes compact">
+            <button type="button" [class.active]="other.mode === 'OFF'" [disabled]="busy() === other.id" (click)="setOtherMode(other, 'OFF')">Apagada</button>
+            <button type="button" [class.active]="other.mode === 'MANUAL'" [disabled]="busy() === other.id" (click)="setOtherMode(other, 'MANUAL')">Manual</button>
+          </div>
+          @if (other.mode !== 'OFF') {
+            <span class="pct">
+              <input type="number" inputmode="decimal" min="0" max="100" step="0.5" [value]="other.commissionPct" (change)="saveCommission(other, $any($event.target).value)" [attr.aria-label]="'Comisión de ' + other.name" />
+              %
+            </span>
+          }
+        </div>
+      }
+      @if (addingOther()) {
+        <div class="other-row">
+          <input class="other-name" type="text" maxlength="40" placeholder="Nombre de la app" [ngModel]="newOtherName()" (ngModelChange)="newOtherName.set($event)" (keydown.enter)="addOther()" />
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="busy() === 'new-other'" (click)="addOther()">Agregar</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="addingOther.set(false)">Cancelar</button>
+        </div>
+      } @else {
+        <button type="button" class="btn btn-secondary btn-sm add-other" (click)="addingOther.set(true)"><app-icon name="plus" [size]="16" /> Agregar otra app</button>
+      }
+    </section>
+  </div>
+
+  <section class="card explain">
+    <h3>¿Cómo funciona?</h3>
+    <ul>
+      <li><strong>Apagada:</strong> no aparece en ningún lado.</li>
+      <li><strong>Manual:</strong> el pedido se sigue atendiendo en la tablet de la app. En COFFE_APP lo cargás en segundos, con su número, y sale la comanda. Lo que cobra la app no entra en la caja del mostrador: queda "a cobrar de la app".</li>
+      <li><strong>Automático (próximamente):</strong> el pedido va a entrar solo, sin cargar nada. La tablet de la app va a seguir siendo el respaldo, para que nunca se pierda un pedido.</li>
+    </ul>
+    <p class="muted small">La comisión es para los reportes (cuánto le queda al café). En Reportes → Excel vas a ver las ventas de cada app.</p>
+  </section>
+}
