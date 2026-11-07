@@ -1,0 +1,38 @@
+# COFFE_APP — servidor web (Caddy).
+#
+# - Pide el certificado HTTPS a Let's Encrypt y lo RENUEVA SOLO (no hay que
+#   hacer nada; los certificados quedan guardados en el volumen caddy_data).
+# - Sirve la app (Angular) y le pasa todo lo que empieza con /api/ al
+#   backend, incluido el WebSocket de las comandas en tiempo real.
+#
+# SITIO sale de deploy/.env (DOMINIO). En la copia de prueba vale ":80"
+# (sin HTTPS, solo para http://localhost:8081).
+
+{$SITIO} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		root * /srv
+		# Los .js/.css de Angular llevan un código en el nombre que cambia
+		# con cada versión: se pueden guardar en el navegador por un año.
+		# Todo lo demás (index.html) se revisa siempre, así al actualizar
+		# los cafés ven la versión nueva sin borrar nada.
+		@conHash path_regexp -[0-9A-Z]{8}\.(js|css)$
+		header @conHash Cache-Control "public, max-age=31536000, immutable"
+		@sinHash not path_regexp -[0-9A-Z]{8}\.(js|css)$
+		header @sinHash Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
