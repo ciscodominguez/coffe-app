@@ -1,0 +1,25 @@
+# Copia de prueba (staging) — la usa deploy/scripts/probar-version.sh.
+#
+# Se suma a docker-compose.yml con otro nombre de proyecto (cofe-prueba),
+# así tiene SU PROPIA base (una copia de la última copia de seguridad) y
+# nunca toca la de los cafés. Solo se ve en http://localhost:8081.
+#
+# Para que la copia no moleste a nadie de verdad:
+# - no manda mails (no recibe la configuración de correo),
+# - no cobra suscripciones ni consulta Mercado Pago (procesos de fondo apagados).
+
+services:
+  backend:
+    env_file: !reset []
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+      SUPPORT_CONTACT: ${SUPPORT_CONTACT:-}
+      JWT_SECRET: copia-de-prueba-clave-que-no-sirve-en-produccion-0123456789
+      MP_TOKEN_ENCRYPTION_KEY: copia-de-prueba-sin-mercado-pago
+      APP_BILLING_JOBENABLED: "false"
+      APP_MERCADOPAGO_SWEEPERENABLED: "false"
+      BILLING_MP_ACCESS_TOKEN: ""
+
+  web:
+    ports: !override
+      - "127.0.0.1:8081:80"

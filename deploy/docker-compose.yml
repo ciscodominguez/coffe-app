@@ -1,0 +1,97 @@
+# COFFE_APP en el servidor: base de datos, backend y sitio web.
+#
+# Todo con "restart: unless-stopped": si algo se cae, o se reinicia el
+# servidor, vuelve a levantar solo. Guía completa: docs/SERVIDOR.md.
+#
+# Las imágenes (cofe-backend y cofe-web) las arman los scripts de
+# deploy/scripts/. La versión en uso siempre se llama "actual".
+
+name: cofe
+
+# Que los logs no llenen el disco: cada servicio guarda como máximo
+# 5 archivos de 10 MB (50 MB) y los más viejos se borran solos.
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    logging: *logs
+    environment:
+      MYSQL_DATABASE: cofe_app
+      MYSQL_USER: cofe_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en deploy/.env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Falta MYSQL_ROOT_PASSWORD en deploy/.env}
+      TZ: UTC
+    command:
+      # Pensado para un servidor de 2 GB: MySQL usa unos 400-500 MB.
+      - --innodb-buffer-pool-size=${MYSQL_BUFFER:-256M}
+      - --max-connections=80
+      - --performance-schema=OFF
+      # Sin "binlogs": ocupan disco y no los usamos (las copias son los volcados nocturnos).
+      - --skip-log-bin
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --skip-name-resolve
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    mem_limit: ${MYSQL_MEM:-700m}
+
+  backend:
+    image: cofe-backend:${VERSION:-actual}
+    restart: unless-stopped
+    logging: *logs
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: cofe_app
+      DB_USERNAME: cofe_user
+      PORT: "3000"
+      UPLOADS_DIR: /app/uploads
+      PUBLIC_BASE_URL: ${URL_PUBLICA:-https://${DOMINIO}}/api/v1
+      FRONTEND_URL: ${URL_PUBLICA:-https://${DOMINIO}}
+      CORS_ORIGIN: ${URL_PUBLICA:-https://${DOMINIO}}
+      # Java no pasa de 768 MB: así no le saca la memoria a MySQL.
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx768m -XX:MaxMetaspaceSize=200m -XX:+ExitOnOutOfMemoryError}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Imágenes de los productos (entran en la copia de seguridad).
+      - imagenes:/app/uploads
+    mem_limit: ${BACKEND_MEM:-1200m}
+
+  web:
+    image: cofe-web:${VERSION:-actual}
+    restart: unless-stopped
+    logging: *logs
+    environment:
+      SITIO: ${SITIO:-${DOMINIO:?Falta DOMINIO en deploy/.env}}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    mem_limit: 200m
+
+volumes:
+  mysql:
+  imagenes:
+  caddy_data:
+  caddy_config:
