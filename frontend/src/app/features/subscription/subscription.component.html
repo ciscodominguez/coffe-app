@@ -1,0 +1,146 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Suscripción</h1>
+    <p class="page-subtitle">El abono mensual de COFFE_APP para tu café, con débito automático de Mercado Pago.</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-secondary" (click)="refresh()" [disabled]="working() || loading()">
+      <app-icon name="refresh" [size]="16" /> Actualizar
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando…</div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger"><app-icon name="alert" /><div class="alert-body">{{ errorMessage() }}</div></div>
+} @else {
+  @if (status(); as s) {
+  <div class="layout">
+    <section class="stack">
+      @if (headline(); as h) {
+        <div class="card headline tone-{{ h.tone }}">
+          <span class="headline-icon"><app-icon [name]="h.icon" [size]="22" /></span>
+          <div>
+            <h2>{{ h.title }}</h2>
+            <p>{{ h.text }}</p>
+          </div>
+        </div>
+      }
+
+      @if (returned() && s.subscriptionStatus !== 'authorized' && s.state !== 'ACTIVE') {
+        <div class="alert alert-info">
+          <app-icon name="info" [size]="18" />
+          <div class="alert-body">
+            Si ya confirmaste en Mercado Pago, puede tardar unos minutos en aparecer acá. Tocá <strong>Actualizar</strong> en un rato.
+          </div>
+        </div>
+      }
+
+      @if (s.state !== 'EXEMPT') {
+        <div class="card">
+          <div class="card-body stack">
+            <div class="price-row">
+              <div>
+                <span class="label">Abono mensual</span>
+                @if (s.monthlyPrice) {
+                  <span class="price money">$ {{ s.monthlyPrice | number: '1.0-2' }} <small>por mes</small></span>
+                } @else {
+                  <span class="price muted">Todavía no disponible</span>
+                }
+              </div>
+              <span class="badge" [class.badge-success]="s.subscriptionStatus === 'authorized'">{{ subscriptionLabel(s) }}</span>
+            </div>
+            <ul class="facts">
+              <li><app-icon name="card" [size]="16" /> Se debita solo cada mes, con la tarjeta que elijas en Mercado Pago.</li>
+              <li><app-icon name="clock" [size]="16" /> Si todavía tenés prueba o días pagos, el primer débito es cuando se terminan.</li>
+              <li><app-icon name="x" [size]="16" /> Cancelás cuando quieras desde acá: seguís usándolo hasta el final de lo pago.</li>
+            </ul>
+
+            @if (isOwner()) {
+              @if (s.canSubscribe) {
+                <div class="field">
+                  <label for="payer">Email de tu cuenta de Mercado Pago</label>
+                  <input id="payer" type="email" [ngModel]="payerEmail()" (ngModelChange)="payerEmail.set($event)" autocomplete="email" />
+                  <span class="help">Tiene que ser el mismo con el que entrás a Mercado Pago para pagar.</span>
+                </div>
+                @if (formError()) {
+                  <div class="alert alert-danger" role="alert"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ formError() }}</div></div>
+                }
+                <button type="button" class="btn btn-primary btn-lg btn-block" (click)="subscribe()" [disabled]="working()">
+                  @if (working()) {
+                    <span class="spinner"></span>
+                  }
+                  {{
+                    s.subscriptionStatus === 'authorized'
+                      ? 'Suscribirme de nuevo con otra tarjeta'
+                      : s.subscriptionStatus === 'pending'
+                        ? 'Seguir con Mercado Pago'
+                        : 'Suscribirme con Mercado Pago'
+                  }}
+                </button>
+                @if (s.subscriptionStatus === 'authorized') {
+                  <span class="muted small center">Cancelamos la suscripción anterior para que no se cobre dos veces.</span>
+                }
+              } @else if (s.unavailableReason && s.subscriptionStatus !== 'authorized') {
+                <div class="hint-box"><app-icon name="info" [size]="18" /><span>{{ s.unavailableReason }}</span></div>
+              }
+              @if (hasSubscription()) {
+                <button type="button" class="btn btn-ghost btn-sm cancel-btn" (click)="confirmCancel.set(true)">Cancelar débito automático</button>
+              }
+            } @else {
+              <div class="hint-box"><app-icon name="lock" [size]="18" /><span>Solo el dueño puede suscribirse o cancelar la suscripción.</span></div>
+            }
+          </div>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h3>Pagos</h3></div>
+      @if (s.payments.length === 0) {
+        <p class="muted empty-pay">Todavía no hubo débitos.</p>
+      } @else {
+        <ul class="payments">
+          @for (p of s.payments; track $index) {
+            <li>
+              <div>
+                <strong>{{ p.chargedAt | date: 'dd/MM/yyyy' }}</strong>
+                <span class="muted small block">
+                  @if (p.status === 'approved') {
+                    Cubre hasta el {{ p.coversUntil | date: 'dd/MM/yyyy' }}
+                  } @else {
+                    Rechazado{{ p.statusDetail ? ' (' + p.statusDetail + ')' : '' }} — Mercado Pago lo reintenta solo
+                  }
+                </span>
+              </div>
+              <div class="pay-right">
+                <span class="money">$ {{ p.amount | number: '1.0-2' }}</span>
+                <span class="badge" [class.badge-success]="p.status === 'approved'" [class.badge-danger]="p.status !== 'approved'">
+                  {{ p.status === 'approved' ? 'Pagado' : 'Rechazado' }}
+                </span>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+}
+}
+
+<app-modal [open]="confirmCancel()" title="¿Cancelar el débito automático?" size="narrow" (closed)="confirmCancel.set(false)">
+  @if (status(); as s) {
+    <p>
+      No se te va a cobrar más. Podés seguir usando COFFE_APP
+      @if (s.accessUntil) {
+        hasta el <strong>{{ s.accessUntil | date: 'dd/MM/yyyy' }}</strong>
+      }
+      ; después tenés {{ s.graceDays }} días para volver a suscribirte antes de que se suspenda.
+    </p>
+  }
+  <div modal-footer class="footer">
+    <button type="button" class="btn btn-ghost" (click)="confirmCancel.set(false)">Volver</button>
+    <button type="button" class="btn btn-danger" (click)="cancel()" [disabled]="working()">Sí, cancelar</button>
+  </div>
+</app-modal>
