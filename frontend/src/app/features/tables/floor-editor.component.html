@@ -1,0 +1,217 @@
+@if (loading()) {
+  <div class="loading"><span class="spinner"></span> Cargando el plano…</div>
+} @else if (loadError()) {
+  <div class="alert alert-danger">
+    <app-icon name="alert" />
+    <div class="alert-body">
+      <strong>No se pudo cargar el plano.</strong> {{ loadError() }}
+      <div class="row load-actions">
+        <button type="button" class="btn btn-secondary btn-sm" (click)="retry()"><app-icon name="refresh" [size]="16" /> Probar de nuevo</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="showList.emit()"><app-icon name="grid" [size]="16" /> Ver la lista de mesas</button>
+      </div>
+    </div>
+  </div>
+} @else if (areas().length === 0) {
+  <app-empty-state
+    icon="map"
+    title="Armá el plano de tu café"
+    [text]="
+      canManage()
+        ? 'Dibujá el salón como es de verdad: acomodá las mesas, marcá la barra y la puerta. Así el equipo encuentra cada mesa de un vistazo.'
+        : 'Todavía no se armó el plano. Lo arma el dueño o quien administra el local.'
+    "
+  >
+    @if (canManage()) {
+      <button type="button" class="btn btn-primary" (click)="openCreateArea()"><app-icon name="plus" /> Empezar el plano</button>
+    }
+  </app-empty-state>
+} @else {
+  <!-- Zonas -->
+  <div class="zones">
+    <div class="zone-tabs" role="tablist" aria-label="Zonas del local">
+      @for (area of areas(); track area.id) {
+        <button
+          type="button"
+          role="tab"
+          class="zone-tab"
+          [class.active]="area.id === areaId()"
+          [attr.aria-selected]="area.id === areaId()"
+          (click)="chooseArea(area.id)"
+        >
+          {{ area.name }}
+        </button>
+      }
+      @if (canManage()) {
+        <button type="button" class="zone-tab add" (click)="openCreateArea()"><app-icon name="plus" [size]="16" /> Zona</button>
+      }
+    </div>
+    @if (canManage()) {
+      <div class="zone-actions">
+        <span class="save-state" [class.error]="saveState() === 'error'" aria-live="polite">
+          @switch (saveState()) {
+            @case ('pending') { Guardando… }
+            @case ('saving') { Guardando… }
+            @case ('saved') { <app-icon name="check" [size]="15" /> Guardado }
+            @case ('error') { No se guardó }
+          }
+        </span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="openRenameArea()"><app-icon name="edit" [size]="16" /> Renombrar</button>
+        <button type="button" class="btn btn-danger-ghost btn-sm" (click)="confirmDelete.set(true)"><app-icon name="trash" [size]="16" /> Borrar zona</button>
+      </div>
+    }
+  </div>
+
+  @if (canManage()) {
+    <!-- Herramientas -->
+    <div class="tools">
+      @if (unplaced().length > 0) {
+        <div class="tool-group">
+          <span class="tool-label">Sin ubicar ({{ unplaced().length }}) — tocá para ponerla:</span>
+          <div class="chip-scroll">
+            @for (table of unplaced(); track table.id) {
+              <button type="button" class="chip" (click)="place(table)">Mesa {{ table.number }}</button>
+            }
+            @if (unplaced().length > 1) {
+              <button type="button" class="chip chip-strong" (click)="placeAll()"><app-icon name="grid" [size]="14" /> Ubicar todas</button>
+            }
+          </div>
+        </div>
+      }
+      <div class="tool-group">
+        <span class="tool-label">Agregar referencia:</span>
+        <div class="chip-scroll">
+          @for (k of kinds; track k.kind) {
+            <button type="button" class="chip" (click)="addItem(k.kind)"><app-icon name="plus" [size]="13" /> {{ k.label }}</button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="board" [class.with-panel]="canManage()">
+    <div class="canvas-wrap">
+      <app-floor-canvas
+        [tables]="canvasTables()"
+        [items]="canvasItems()"
+        [editable]="canManage()"
+        [selected]="canManage() ? selected() : null"
+        (pick)="onPick($event)"
+        (boxChange)="onBox($event)"
+      />
+    </div>
+
+    @if (canManage()) {
+      <aside class="panel card">
+        @if (selectedTable(); as table) {
+          <h3>Mesa {{ table.number }} @if (table.label) { <span class="muted">· {{ table.label }}</span> }</h3>
+          <div class="field">
+            <span class="field-label">Forma</span>
+            <div class="shape-picker">
+              @for (shape of shapes; track shape) {
+                <button type="button" [class.active]="table.shape === shape" [attr.aria-pressed]="table.shape === shape" (click)="setShape(table, shape)">
+                  <span class="shape-ico" [class]="'shape-ico s-' + shape"></span>{{ shapeLabels[shape] }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Tamaño</span>
+            <div class="row">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="resize(-2)" aria-label="Achicar"><app-icon name="minus" [size]="16" /></button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="resize(2)" aria-label="Agrandar"><app-icon name="plus" [size]="16" /></button>
+              @if (table.shape === 'RECT') {
+                <button type="button" class="btn btn-secondary btn-sm" (click)="rotate()"><app-icon name="refresh" [size]="16" /> Girar</button>
+              }
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="editTable.emit(table)"><app-icon name="edit" [size]="16" /> Nombre y lugares</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="unplace(table)"><app-icon name="x" [size]="16" /> Sacar del plano</button>
+          </div>
+        } @else {
+        @if (selectedItem(); as item) {
+          <h3>{{ itemLabel(item.kind) }}</h3>
+          <div class="field">
+            <label for="item-label">Texto <span class="muted">(opcional)</span></label>
+            <input
+              id="item-label"
+              type="text"
+              maxlength="40"
+              data-no-autofocus
+              [placeholder]="itemLabel(item.kind)"
+              [ngModel]="item.label ?? ''"
+              (ngModelChange)="setItemLabel(item, $event)"
+            />
+          </div>
+          <div class="field">
+            <span class="field-label">Tamaño</span>
+            <div class="row">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="resize(-2)" aria-label="Achicar"><app-icon name="minus" [size]="16" /></button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="resize(2)" aria-label="Agrandar"><app-icon name="plus" [size]="16" /></button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="rotate()"><app-icon name="refresh" [size]="16" /> Girar</button>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn btn-danger-ghost btn-sm" (click)="removeItem(item)"><app-icon name="trash" [size]="16" /> Borrar</button>
+          </div>
+        } @else {
+          <h3>Cómo se usa</h3>
+          <ul class="howto">
+            <li><strong>Arrastrá</strong> cada mesa hasta donde está en tu café.</li>
+            <li>Tocá una mesa para elegir su <strong>forma</strong> y <strong>tamaño</strong> (o agrandala desde la esquina).</li>
+            <li>Marcá la <strong>barra</strong>, la <strong>puerta</strong> y las paredes para ubicarse rápido.</li>
+            <li>Se guarda solo.</li>
+          </ul>
+        }
+        }
+      </aside>
+    }
+  </div>
+
+  @if (!canManage() && unplaced().length > 0) {
+    <p class="muted small">Sin ubicar en el plano: {{ unplaced().length }} {{ unplaced().length === 1 ? 'mesa' : 'mesas' }}.</p>
+  }
+}
+
+<!-- Crear / renombrar zona -->
+<app-modal
+  [open]="!!areaModal()"
+  [title]="areaModal() === 'create' ? (areas().length === 0 ? 'Primera zona' : 'Nueva zona') : 'Renombrar zona'"
+  [subtitle]="areaModal() === 'create' ? 'Cada zona es un plano aparte: el salón, la vereda, la planta alta…' : ''"
+  size="narrow"
+  (closed)="areaModal.set(null)"
+  [dismissable]="!areaBusy()"
+>
+  <div class="stack">
+    <div class="field">
+      <label for="area-name">Nombre</label>
+      <input id="area-name" type="text" maxlength="50" [ngModel]="areaName()" (ngModelChange)="areaName.set($event)" (keydown.enter)="saveArea()" />
+    </div>
+    @if (areaModal() === 'create') {
+      <div class="chip-scroll">
+        @for (s of suggestions; track s) {
+          <button type="button" class="chip" [class.selected]="areaName() === s" (click)="areaName.set(s)">{{ s }}</button>
+        }
+      </div>
+      @if (areas().length === 0 && unplaced().length > 0) {
+        <p class="muted small">Vamos a poner tus {{ unplaced().length }} mesas en filas; después las arrastrás a su lugar.</p>
+      }
+    }
+    @if (areaError()) {
+      <div class="alert alert-danger"><app-icon name="alert" [size]="18" /><div class="alert-body">{{ areaError() }}</div></div>
+    }
+  </div>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="areaModal.set(null)">Cancelar</button>
+    <button type="button" class="btn btn-primary" [disabled]="areaBusy()" (click)="saveArea()">{{ areaBusy() ? 'Guardando…' : areaModal() === 'create' ? 'Crear' : 'Guardar' }}</button>
+  </div>
+</app-modal>
+
+<!-- Borrar zona -->
+<app-modal [open]="confirmDelete()" [title]="'¿Borrar la zona ' + (currentArea()?.name ?? '') + '?'" size="narrow" (closed)="confirmDelete.set(false)" [dismissable]="!areaBusy()">
+  <p>Las mesas no se borran: quedan "sin ubicar" y las podés poner en otra zona. Las referencias (barra, puerta…) de esta zona sí se borran.</p>
+  <div modal-footer>
+    <button type="button" class="btn btn-ghost" (click)="confirmDelete.set(false)">Cancelar</button>
+    <button type="button" class="btn btn-danger" [disabled]="areaBusy()" (click)="deleteArea()">Borrar zona</button>
+  </div>
+</app-modal>
