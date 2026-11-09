@@ -1,0 +1,224 @@
+:host {
+  display: block;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  container-type: inline-size;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border);
+  background-color: var(--surface-2);
+  background-image: radial-gradient(color-mix(in srgb, var(--text-muted) 22%, transparent) 1px, transparent 1.2px);
+  background-size: 5% 6.6667%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.canvas.editable {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--text-muted) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text-muted) 10%, transparent) 1px, transparent 1px);
+}
+
+/* ---------- Referencias ---------- */
+
+.item {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: max(8px, min(1.6cqw, calc(var(--s) * 0.32cqw)));
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.item-label {
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kind-BAR {
+  background: color-mix(in srgb, #a0703f 30%, var(--surface));
+  border: 1.5px solid color-mix(in srgb, #8a5a33 70%, transparent);
+  color: color-mix(in srgb, #6b4423 80%, var(--text));
+}
+
+.kind-WALL {
+  background: color-mix(in srgb, var(--text) 55%, transparent);
+  border-radius: 2px;
+  color: var(--surface);
+}
+
+.kind-WINDOW {
+  background: repeating-linear-gradient(90deg, var(--info-soft) 0 6px, color-mix(in srgb, var(--info) 35%, transparent) 6px 8px);
+  border: 1px solid var(--info);
+  border-radius: 2px;
+  color: var(--info);
+}
+
+.kind-DOOR {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 2px dashed var(--text-muted);
+}
+
+.kind-RESTROOM,
+.kind-KITCHEN {
+  background: var(--surface-3);
+  border: 1.5px solid var(--border-strong);
+}
+
+/* ---------- Mesas ---------- */
+
+.table {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1em;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--text);
+  border: 2px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shape-ROUND {
+  border-radius: 50%;
+}
+.shape-SQUARE {
+  border-radius: 16%;
+}
+.shape-RECT {
+  border-radius: max(4px, calc(var(--s) * 0.18cqw));
+}
+
+.num {
+  font-weight: 800;
+  line-height: 1;
+  font-size: max(11px, calc(var(--s) * 0.36cqw));
+}
+
+.line {
+  font-size: max(8px, calc(var(--s) * 0.14cqw));
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* Lienzo chico (celular): solo el número y los minutos; el color ya dice si está libre. */
+@container (max-width: 560px) {
+  .line.extra {
+    display: none;
+  }
+}
+
+.tone-neutral {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  color: var(--primary);
+}
+
+.tone-free {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: color-mix(in srgb, var(--success) 75%, var(--text));
+}
+
+.tone-busy {
+  background: var(--warning-soft);
+  border-color: var(--warning);
+  color: color-mix(in srgb, var(--warning) 45%, var(--text));
+}
+
+.tone-late {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: color-mix(in srgb, var(--danger) 70%, var(--text));
+  animation: late 1.6s ease-in-out infinite;
+}
+
+.tone-reserved {
+  background: var(--info-soft);
+  border-color: var(--info);
+  color: var(--info);
+}
+
+@keyframes late {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tone-late {
+    animation: none;
+  }
+}
+
+.canvas:not(.editable) .table:hover {
+  transform: scale(1.04);
+  box-shadow: var(--shadow);
+}
+
+.table:focus-visible,
+.item:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Edición ---------- */
+
+.editable .table,
+.editable .item {
+  cursor: grab;
+  touch-action: none;
+}
+
+.editable .table:active,
+.editable .item:active {
+  cursor: grabbing;
+}
+
+.selected {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  z-index: 2;
+  overflow: visible;
+}
+
+.handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--primary);
+  border: 2px solid var(--surface);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.shape-ROUND .handle {
+  right: 4%;
+  bottom: 4%;
+}

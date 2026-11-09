@@ -1,0 +1,63 @@
+<div
+  #canvas
+  class="canvas"
+  [class.editable]="editable()"
+  (click)="background()"
+  (pointermove)="move($event)"
+  (pointerup)="up($event)"
+  (pointercancel)="up($event)"
+>
+  @for (item of items(); track item.key) {
+    <div
+      class="item"
+      [class]="'item kind-' + item.kind"
+      [class.selected]="selected() === 'i:' + item.key"
+      [style.left]="left(item)"
+      [style.top]="top(item)"
+      [style.width]="width(item)"
+      [style.height]="height(item)"
+      [style.--s]="side(item)"
+      [attr.tabindex]="editable() ? 0 : null"
+      [attr.role]="editable() ? 'button' : null"
+      [attr.aria-label]="editable() ? (item.label || itemLabel(item.kind)) : null"
+      (pointerdown)="down($event, 'i:' + item.key, item, 'move')"
+      (click)="click($event, 'i:' + item.key)"
+      (keydown)="key($event, 'i:' + item.key, item)"
+    >
+      @if (side(item) >= 4 || item.width >= 14) {
+        <span class="item-label">{{ item.label || itemLabel(item.kind) }}</span>
+      }
+      @if (editable() && selected() === 'i:' + item.key) {
+        <span class="handle" (pointerdown)="down($event, 'i:' + item.key, item, 'resize')" aria-hidden="true"></span>
+      }
+    </div>
+  }
+
+  @for (table of tables(); track table.id) {
+    <button
+      type="button"
+      class="table"
+      [class]="'table shape-' + table.shape + ' tone-' + table.tone"
+      [class.selected]="selected() === 't:' + table.id"
+      [style.left]="left(table)"
+      [style.top]="top(table)"
+      [style.width]="width(table)"
+      [style.height]="height(table)"
+      [style.--s]="side(table)"
+      [attr.aria-label]="table.ariaLabel"
+      (pointerdown)="down($event, 't:' + table.id, table, 'move')"
+      (click)="click($event, 't:' + table.id)"
+      (keydown)="key($event, 't:' + table.id, table)"
+    >
+      <span class="num">{{ table.number }}</span>
+      @if (side(table) >= 9) {
+        @for (line of table.lines; track $index) {
+          <span class="line" [class.extra]="$index > 0 || line === 'Libre'">{{ line }}</span>
+        }
+      }
+      @if (editable() && selected() === 't:' + table.id) {
+        <span class="handle" (pointerdown)="down($event, 't:' + table.id, table, 'resize', table.shape !== 'RECT')" aria-hidden="true"></span>
+      }
+    </button>
+  }
+</div>
